@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RADAR CSC 360° — Resultados</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <span class="logo">RADAR CSC <span>360°</span></span>
+  <button onclick="logout()" class="btn btn-secondary" style="margin-left:auto;font-size:.875rem;padding:.4rem .875rem;">Sair</button>
+</header>
+
+<main class="app-main">
+
+  <nav id="breadcrumb" class="breadcrumb"></nav>
+
+  <div id="loading" style="text-align:center;padding:3rem;color:var(--text-muted);">
+    <span class="spinner dark"></span> Carregando resultados...
+  </div>
+
+  <div id="sem-dados" class="card hidden" style="text-align:center;padding:3rem 2rem;">
+    <div style="font-size:2.5rem;margin-bottom:1rem;">📭</div>
+    <h3 style="margin-bottom:.5rem;">Nenhuma resposta registrada</h3>
+    <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:1.5rem;">
+      Adicione participantes e colete respostas para visualizar os resultados.
+    </p>
+    <a id="link-participantes" href="dashboard.html" class="btn btn-primary" style="display:inline-block;">
+      Ir para participantes
+    </a>
+  </div>
+
+  <div id="conteudo" class="hidden">
+
+    <!-- Card: empresa + posicionamento + ações -->
+    <div class="card" style="margin-bottom:1.25rem;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.375rem;">
+            <h2 id="empresa-nome" style="font-size:1.375rem;font-weight:700;"></h2>
+            <span id="badge-posicionamento" class="badge-posicionamento hidden"></span>
+          </div>
+          <p id="meta-info" style="font-size:.85rem;color:var(--text-muted);"></p>
+        </div>
+        <div class="resultado-actions">
+          <button class="btn btn-outline" onclick="exportarPDF()">📄 Exportar PDF</button>
+          <button id="btn-link-publico" class="btn btn-primary">🔗 Link público</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card: Radar 360° -->
+    <div class="card" style="margin-bottom:1.25rem;">
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:1rem;">Diagnóstico 360°</h3>
+      <div id="radar-legend" class="radar-legend"></div>
+      <div style="position:relative;height:420px;max-width:560px;margin:0 auto;">
+        <canvas id="radar-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Card: Avaliação por área (p37) -->
+    <div id="card-areas" class="card hidden" style="margin-bottom:1.25rem;">
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:1rem;">Avaliação por Área</h3>
+      <div id="areas-conteudo"></div>
+    </div>
+
+  </div>
+
+</main>
+
+<!-- Modal: gerar link público -->
+<div id="modal-link" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:480px;">
+    <h3>Gerar Link Público</h3>
+    <p style="font-size:.875rem;color:var(--text-muted);margin:.5rem 0 1.25rem;">
+      Crie um link somente-leitura para compartilhar o dashboard com o cliente.
+    </p>
+
+    <div id="link-form">
+      <div class="form-group">
+        <label class="form-label">Prazo de validade</label>
+        <select id="link-dias" class="form-input">
+          <option value="">Sem prazo</option>
+          <option value="7">7 dias</option>
+          <option value="15">15 dias</option>
+          <option value="30">30 dias</option>
+          <option value="60">60 dias</option>
+          <option value="90">90 dias</option>
+        </select>
+      </div>
+      <div id="link-erro" class="alert alert-error hidden" style="margin-bottom:.75rem;"></div>
+      <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
+        <button id="btn-link-cancelar" class="btn btn-secondary" style="flex:1;">Cancelar</button>
+        <button id="btn-link-gerar"    class="btn btn-primary"    style="flex:2;">Gerar Link</button>
+      </div>
+    </div>
+
+    <div id="link-resultado" class="hidden">
+      <div style="background:var(--bg);border-radius:var(--radius);padding:.875rem 1rem;margin-bottom:1rem;">
+        <p style="font-size:.75rem;color:var(--text-muted);margin-bottom:.375rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Link gerado</p>
+        <p id="link-url" style="font-size:.8rem;word-break:break-all;font-family:monospace;color:var(--text);line-height:1.5;"></p>
+      </div>
+      <div style="display:flex;gap:.625rem;">
+        <button id="btn-copiar-link" class="btn btn-primary" style="flex:1;">📋 Copiar link</button>
+        <button id="btn-link-fechar" class="btn btn-secondary" style="flex:1;">Fechar</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="../config.js"></script>
+<script src="admin.js"></script>
+<script>
+let radarChart = null;
+
+const EIXOS_KEYS = [
+  'Clareza e Comunicação',
+  'Tempo e Fluxo',
+  'Postura de Atendimento',
+  'Qualidade e Confiabilidade',
+  'Proatividade',
+  'Gentileza no Contato',
+  'Equilíbrio Emocional',
+  'Foco na Solução',
+];
+
+const EIXOS_LABELS = [
+  ['Clareza e', 'Comunicação'],
+  ['Tempo e', 'Fluxo'],
+  ['Postura de', 'Atendimento'],
+  ['Qualidade e', 'Confiabilidade'],
+  'Proatividade',
+  ['Gentileza', 'no Contato'],
+  ['Equilíbrio', 'Emocional'],
+  ['Foco na', 'Solução'],
+];
+
+const AP_COLORS = [
+  { border: '#3b82f6', bg: 'rgba(59,130,246,0.12)' },
+  { border: '#7c3aed', bg: 'rgba(124,58,237,0.12)' },
+  { border: '#059669', bg: 'rgba(5,150,105,0.12)'  },
+  { border: '#d97706', bg: 'rgba(217,119,6,0.12)'  },
+];
+
+const POS_CLASS = {
+  'Operacional': 'pos-operacional',
+  'Apoio':       'pos-apoio',
+  'Parceiro':    'pos-parceiro',
+  'Estratégico': 'pos-estrategico',
+};
+
+// ── Init ──
+
+async function init() {
+  if (!checkAuth()) return;
+
+  const empresa_id = getParam('empresa_id');
+  if (!empresa_id) { window.location.replace('dashboard.html'); return; }
+
+  try {
+    const r = await apiCall('getDashboardData', { empresa_id });
+    if (!r.success) throw new Error(r.error);
+
+    renderBreadcrumb([
+      { label: 'Empresas',          href: 'dashboard.html' },
+      { label: r.empresa.nome,      href: 'empresa.html?id=' + encodeURIComponent(empresa_id) },
+      { label: 'Resultados' },
+    ]);
+
+    document.getElementById('loading').style.display = 'none';
+
+    if (!r.aplicacoes || r.aplicacoes.length === 0) {
+      const apRes = await apiCall('listarAplicacoes', { empresa_id });
+      const ap = apRes.success && apRes.aplicacoes && apRes.aplicacoes[0];
+      if (ap) {
+        document.getElementById('link-participantes').href =
+          'participantes.html?aplicacao_id=' + encodeURIComponent(ap.id) +
+          '&empresa_id=' + encodeURIComponent(empresa_id);
+      }
+      document.getElementById('sem-dados').classList.remove('hidden');
+      return;
+    }
+
+    renderConteudo(r, empresa_id);
+    setupModal(empresa_id);
+
+  } catch (err) {
+    document.getElementById('loading').innerHTML =
+      '<p style="color:var(--error);">' + escHtml(err.message) + '</p>';
+  }
+}
+
+// ── Render ──
+
+function renderConteudo(data, empresa_id) {
+  const { empresa, aplicacoes } = data;
+
+  document.getElementById('empresa-nome').textContent = empresa.nome;
+
+  const total = aplicacoes.reduce((s, a) => s + a.total_respondentes, 0);
+  document.getElementById('meta-info').textContent =
+    aplicacoes.length + ' aplicaç' + (aplicacoes.length > 1 ? 'ões' : 'ão') +
+    ' · ' + total + ' respondente' + (total !== 1 ? 's' : '');
+
+  const ultima = aplicacoes[aplicacoes.length - 1];
+  if (ultima.posicionamento) {
+    const badge = document.getElementById('badge-posicionamento');
+    badge.textContent = ultima.posicionamento;
+    badge.className = 'badge-posicionamento ' + (POS_CLASS[ultima.posicionamento] || '');
+  }
+
+  renderRadar(aplicacoes);
+
+  if (empresa.areas && empresa.areas.length > 0) {
+    renderAreas(empresa.areas, aplicacoes);
+    document.getElementById('card-areas').classList.remove('hidden');
+  }
+
+  document.getElementById('conteudo').classList.remove('hidden');
+}
+
+function renderRadar(aplicacoes) {
+  document.getElementById('radar-legend').innerHTML = aplicacoes.map((ap, i) => `
+    <span class="legend-item">
+      <span class="legend-dot" style="background:${AP_COLORS[i % AP_COLORS.length].border}"></span>
+      ${escHtml(ap.aplicacao_nome)}
+      <span style="font-size:.75rem;color:var(--text-muted);">(${ap.total_respondentes} resp.)</span>
+    </span>
+  `).join('');
+
+  const datasets = aplicacoes.map((ap, i) => {
+    const c = AP_COLORS[i % AP_COLORS.length];
+    return {
+      label: ap.aplicacao_nome,
+      data: EIXOS_KEYS.map(k => ap.eixos[k] ?? null),
+      borderColor: c.border,
+      backgroundColor: c.bg,
+      borderWidth: 2.5,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      pointBackgroundColor: c.border,
+    };
+  });
+
+  radarChart = new Chart(document.getElementById('radar-chart'), {
+    type: 'radar',
+    data: { labels: EIXOS_LABELS, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        r: {
+          min: 0,
+          max: 5,
+          ticks: {
+            stepSize: 1,
+            backdropColor: 'transparent',
+            font: { size: 11 },
+          },
+          grid:        { color: 'rgba(0,0,0,0.07)' },
+          angleLines:  { color: 'rgba(0,0,0,0.07)' },
+          pointLabels: { font: { size: 12, weight: '500' }, color: '#374151' },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ' ' + ctx.dataset.label + ': ' +
+              (ctx.raw != null ? Number(ctx.raw).toFixed(2) : '—'),
+          },
+        },
+      },
+    },
+  });
+}
+
+function renderAreas(areas, aplicacoes) {
+  const headers = ['<th>Área</th>', ...aplicacoes.map(ap =>
+    '<th style="text-align:center;">' + escHtml(ap.aplicacao_nome) + '</th>'
+  )];
+
+  const rows = areas.map(area => {
+    const cells = aplicacoes.map(ap => {
+      const val = ap.avaliacao_areas[area];
+      const txt = val != null ? Number(val).toFixed(2) : '—';
+      return '<td class="nota-cell">' + escHtml(txt) + '</td>';
+    });
+    return '<tr><td style="font-weight:500;">' + escHtml(area) + '</td>' + cells.join('') + '</tr>';
+  });
+
+  document.getElementById('areas-conteudo').innerHTML = `
+    <div style="overflow-x:auto;">
+      <table class="areas-table">
+        <thead><tr>${headers.join('')}</tr></thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ── PDF ──
+
+function exportarPDF() {
+  window.print();
+}
+
+// ── Modal: link público ──
+
+function setupModal(empresa_id) {
+  document.getElementById('btn-link-publico').addEventListener('click', () => {
+    document.getElementById('link-form').classList.remove('hidden');
+    document.getElementById('link-resultado').classList.add('hidden');
+    document.getElementById('link-erro').classList.add('hidden');
+    document.getElementById('link-dias').value = '';
+    showModal('modal-link');
+  });
+
+  document.getElementById('btn-link-cancelar').addEventListener('click', () => hideModal('modal-link'));
+  document.getElementById('btn-link-fechar').addEventListener('click', () => hideModal('modal-link'));
+  document.getElementById('modal-link').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-link')) hideModal('modal-link');
+  });
+
+  document.getElementById('btn-link-gerar').addEventListener('click', () => gerarLink(empresa_id));
+
+  document.getElementById('btn-copiar-link').addEventListener('click', () => {
+    const url = document.getElementById('link-url').textContent;
+    copyToClipboard(url).then(() => showToast('Link copiado!'));
+  });
+}
+
+async function gerarLink(empresa_id) {
+  const btn    = document.getElementById('btn-link-gerar');
+  const erroEl = document.getElementById('link-erro');
+  const dias   = document.getElementById('link-dias').value;
+
+  erroEl.classList.add('hidden');
+  setLoading(btn, true);
+
+  try {
+    const payload = { empresa_id };
+    if (dias) payload.dias_validade = parseInt(dias, 10);
+
+    const r = await apiCall('criarLinkPublico', payload);
+    if (!r.success) {
+      erroEl.textContent = r.error;
+      erroEl.classList.remove('hidden');
+      return;
+    }
+
+    const base = window.location.href.replace(/\/admin\/.*/, '');
+    const url  = base + '/publico/dashboard.html?token=' + encodeURIComponent(r.token);
+
+    document.getElementById('link-url').textContent = url;
+    document.getElementById('link-form').classList.add('hidden');
+    document.getElementById('link-resultado').classList.remove('hidden');
+
+  } catch (err) {
+    erroEl.textContent = err.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>

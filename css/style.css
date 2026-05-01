@@ -624,3 +624,103 @@ tr:hover td { background: var(--bg); }
   .block-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .question-card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
 }
+
+/* ══════════════════════════════════════════
+   Resultado / Dashboard
+══════════════════════════════════════════ */
+
+/* ── Posicionamento CSC badge ── */
+.badge-posicionamento {
+  display: inline-flex;
+  align-items: center;
+  padding: .2rem .625rem;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+.pos-operacional { background: #f3f4f6; color: #4b5563; }
+.pos-apoio       { background: var(--primary-light); color: var(--primary); }
+.pos-parceiro    { background: #d1fae5; color: #065f46; }
+.pos-estrategico { background: #ede9fe; color: #5b21b6; }
+
+/* ── Actions bar ── */
+.resultado-actions {
+  display: flex;
+  gap: .625rem;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* ── Radar legend ── */
+.radar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem .875rem;
+  margin-bottom: 1.25rem;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: .375rem;
+  font-size: .85rem;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ── Avaliação por área ── */
+.areas-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .875rem;
+}
+.areas-table th {
+  padding: .5rem .75rem;
+  border-bottom: 2px solid var(--border);
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  text-align: left;
+}
+.areas-table td {
+  padding: .5rem .75rem;
+  border-bottom: 1px solid var(--border);
+}
+.areas-table tbody tr:last-child td { border-bottom: none; }
+.nota-cell {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* ── Print: resultado ── */
+@media print {
+  .breadcrumb,
+  .resultado-actions,
+  #btn-link-publico,
+  .modal-overlay,
+  #toast { display: none !important; }
+
+  canvas { max-width: 100% !important; }
+
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+    break-inside: avoid;
+  }
+
+  .legend-dot,
+  .badge-posicionamento {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

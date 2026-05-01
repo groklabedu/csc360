@@ -32,9 +32,14 @@
           <div id="empresa-areas" style="display:flex;flex-wrap:wrap;gap:.375rem;margin-bottom:.75rem;"></div>
           <p id="empresa-meta" style="font-size:.85rem;color:var(--text-muted);"></p>
         </div>
-        <button id="btn-editar-empresa" class="btn btn-outline" style="flex-shrink:0;">
-          ✏️ Editar empresa
-        </button>
+        <div style="display:flex;gap:.625rem;flex-shrink:0;flex-wrap:wrap;">
+          <a id="link-resultados" href="resultado.html" class="btn btn-primary" style="font-size:.875rem;">
+            📊 Ver resultados
+          </a>
+          <button id="btn-editar-empresa" class="btn btn-outline">
+            ✏️ Editar empresa
+          </button>
+        </div>
       </div>
     </div>
 
@@ -159,6 +164,7 @@ function renderEmpresa() {
   ]);
 
   document.getElementById('empresa-nome').textContent = empresa.nome;
+  document.getElementById('link-resultados').href = 'resultado.html?empresa_id=' + encodeURIComponent(empresa.id);
 
   const areasEl = document.getElementById('empresa-areas');
   const areas = Array.isArray(empresa.areas) ? empresa.areas : [];
