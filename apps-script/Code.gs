@@ -590,3 +590,53 @@ function setupPlanilha() {
 
   Logger.log('✅ Planilha configurada com sucesso!');
 }
+
+// ─────────────────────────────────────────────
+// Dados de teste — rode para popular respostas fictícias
+// ─────────────────────────────────────────────
+
+function criarRespostasTeste() {
+  const empresas = sheetToObjects(getSheet('empresas'));
+  const empresa  = empresas.find(e => e.nome === 'TESTE');
+  if (!empresa) { Logger.log('Empresa TESTE não encontrada.'); return; }
+
+  const areas = parsearJSON(empresa.areas, []);
+  const participantes = sheetToObjects(getSheet('participantes'))
+    .filter(p => p.empresa_id === empresa.id && !p.respondido);
+
+  Logger.log('Participantes pendentes: ' + participantes.length);
+
+  const p36opcoes = ['Apoio', 'Parceiro', 'Estratégico'];
+  const bases     = [
+    [4,3,4,5, 3,4,3,4, 5,4,4,3, 4,4,5,4, 3,4,3,4, 4,5,4,3, 4,3,4,4, 5,4,3,4],
+    [3,4,3,4, 4,5,4,3, 4,3,5,4, 3,4,4,5, 4,3,4,5, 3,4,3,4, 5,4,3,4, 4,3,5,4],
+    [5,4,5,4, 3,3,4,5, 4,5,3,4, 5,4,3,4, 5,4,5,3, 4,3,5,4, 3,5,4,4, 4,5,4,3],
+  ];
+
+  participantes.forEach((part, idx) => {
+    const vals = bases[idx % bases.length];
+    const respostas = {};
+    for (let i = 1; i <= 32; i++) respostas['p' + i] = vals[i - 1];
+    respostas.p33 = 4;
+    respostas.p34 = 3 + (idx % 3);
+    respostas.p35 = ['Analista', 'Coordenadora', 'Gestora'][idx % 3];
+    respostas.p36 = p36opcoes[idx % p36opcoes.length];
+    const p37 = {};
+    areas.forEach((area, ai) => { p37[area] = 3 + ((idx + ai) % 3); });
+    respostas.p37 = p37;
+    respostas.p38 = '';
+    respostas.p_aberta_1 = 'Boa comunicação e clareza nos processos.';
+    respostas.p_aberta_2 = 'Melhorar o tempo de resposta das solicitações.';
+
+    const r = salvarResposta({
+      codigo:          part.codigo,
+      participante_id: part.id,
+      aplicacao_id:    part.aplicacao_id,
+      empresa_id:      part.empresa_id,
+      respostas,
+    });
+    Logger.log(part.nome + ': ' + JSON.stringify(r));
+  });
+
+  Logger.log('✅ Respostas de teste criadas!');
+}
