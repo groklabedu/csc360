@@ -268,7 +268,11 @@ function renderTabela() {
           <button
             class="btn-icon"
             title="Ver código e link"
-            onclick="abrirCodigo(${JSON.stringify(escHtml(p.id))}, ${JSON.stringify(escHtml(p.nome))}, ${JSON.stringify(escHtml(p.codigo))}, ${JSON.stringify(escHtml(p.email || ''))})"
+            data-id="${escHtml(p.id)}"
+            data-nome="${escHtml(p.nome)}"
+            data-codigo="${escHtml(p.codigo)}"
+            data-email="${escHtml(p.email || '')}"
+            onclick="abrirCodigo(this.dataset.id, this.dataset.nome, this.dataset.codigo, this.dataset.email)"
           >🔗</button>
           ${p.email
             ? `<a class="btn-icon" title="Enviar convite por e-mail" href="${escHtml(gerarMailto(p, link))}" target="_blank">✉️</a>`
