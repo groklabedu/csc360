@@ -53,7 +53,7 @@ function doGet(e) {
 function jsonResponse(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
+    .setMimeType(ContentService.MimeType.TEXT);
 }
 
 // ─────────────────────────────────────────────

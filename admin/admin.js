@@ -10,7 +10,8 @@ async function apiCall(action, payload) {
     redirect: 'follow',
   });
   if (!res.ok) throw new Error('Erro de rede (' + res.status + ')');
-  return res.json();
+  const text = await res.text();
+  return JSON.parse(text);
 }
 
 async function sha256(str) {
