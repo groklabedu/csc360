@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RADAR CSC 360° — Avaliação</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <span class="logo">RADAR CSC <span>360°</span></span>
+</header>
+
+<main class="app-main">
+
+  <!-- STEP 1: Código de acesso -->
+  <div id="step-codigo" class="step">
+    <div class="card" style="max-width:440px;margin:2rem auto;">
+      <div style="text-align:center;margin-bottom:1.75rem;">
+        <div style="font-size:2.5rem;margin-bottom:.75rem;">📋</div>
+        <h1 style="font-size:1.375rem;font-weight:700;margin-bottom:.5rem;">Avaliação CSC 360°</h1>
+        <p style="color:var(--text-muted);font-size:.9375rem;">Insira o código de acesso recebido por e-mail para responder ao questionário.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="input-codigo">Código de acesso</label>
+        <input
+          id="input-codigo"
+          class="form-input"
+          type="text"
+          placeholder="Ex: ABC123"
+          maxlength="6"
+          autocomplete="off"
+          style="text-transform:uppercase;letter-spacing:.1em;font-size:1.25rem;text-align:center;"
+        >
+      </div>
+      <div id="erro-codigo" class="alert alert-error hidden"></div>
+      <button id="btn-validar" class="btn btn-primary btn-full btn-lg" style="margin-top:.5rem;">
+        Começar avaliação →
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Questionário -->
+  <div id="step-questionario" class="step hidden">
+
+    <div class="progress-wrapper">
+      <div class="progress-header">
+        <span class="progress-title">Progresso</span>
+        <span class="progress-count" id="progress-count">0 de 38</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="autosave-indicator" id="autosave-indicator"></div>
+    </div>
+
+    <div id="form-container"></div>
+
+    <div class="submit-section">
+      <p>Revise suas respostas antes de enviar. Após o envio, não será possível alterar.</p>
+      <div id="submit-error" class="alert alert-error hidden" style="margin-bottom:1rem;text-align:left;"></div>
+      <button id="btn-submit" class="btn btn-primary btn-full btn-lg">
+        Enviar avaliação
+      </button>
+    </div>
+
+  </div>
+
+  <!-- STEP 3: Sucesso -->
+  <div id="step-sucesso" class="step hidden">
+    <div class="card success-card">
+      <div class="success-icon">✓</div>
+      <h2>Avaliação enviada!</h2>
+      <p>Obrigado pela sua participação. Suas respostas foram registradas com sucesso.</p>
+    </div>
+  </div>
+
+</main>
+
+<!-- Modal: rascunho encontrado -->
+<div id="modal-draft" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>Rascunho encontrado</h3>
+    <p>Você tem respostas salvas para este código. Deseja continuar de onde parou?</p>
+    <div class="modal-actions">
+      <button id="btn-draft-continuar" class="btn btn-primary">Sim, continuar de onde parei</button>
+      <button id="btn-draft-recomecar" class="btn btn-secondary">Não, começar do zero</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+// ─────────────────────────────────────────────
+// Dados das perguntas
+// ─────────────────────────────────────────────
+
+const BLOCO1 = [
+  { id: 'p1',  texto: 'Clareza das respostas',                                       grupo: 'Clareza e Comunicação' },
+  { id: 'p2',  texto: 'Objetividade na comunicação',                                 grupo: 'Clareza e Comunicação' },
+  { id: 'p3',  texto: 'Alinhamento de expectativas (prazo, entrega, próximos passos)',grupo: 'Clareza e Comunicação' },
+  { id: 'p4',  texto: 'Comunicação proativa (status, avisos, antecipação)',           grupo: 'Clareza e Comunicação' },
+  { id: 'p5',  texto: 'Tempo de resposta inicial',                                   grupo: 'Tempo e Fluxo' },
+  { id: 'p6',  texto: 'Cumprimento de prazos',                                       grupo: 'Tempo e Fluxo' },
+  { id: 'p7',  texto: 'Agilidade na execução',                                       grupo: 'Tempo e Fluxo' },
+  { id: 'p8',  texto: 'Priorização correta do que é crítico',                        grupo: 'Tempo e Fluxo' },
+  { id: 'p9',  texto: 'Disponibilidade para ajudar',                                 grupo: 'Postura de Atendimento' },
+  { id: 'p10', texto: 'Senso de responsabilidade pelas demandas',                    grupo: 'Postura de Atendimento' },
+  { id: 'p11', texto: 'Facilidade de interação',                                     grupo: 'Postura de Atendimento' },
+  { id: 'p12', texto: 'Consistência no atendimento (não depende da pessoa)',         grupo: 'Postura de Atendimento' },
+  { id: 'p13', texto: 'Qualidade técnica',                                           grupo: 'Qualidade e Confiabilidade' },
+  { id: 'p14', texto: 'Precisão das informações',                                    grupo: 'Qualidade e Confiabilidade' },
+  { id: 'p15', texto: 'Baixo retrabalho',                                            grupo: 'Qualidade e Confiabilidade' },
+  { id: 'p16', texto: 'Confiabilidade das entregas',                                 grupo: 'Qualidade e Confiabilidade' },
+];
+
+const BLOCO2 = [
+  { id: 'p17', texto: 'Antecipação de problemas',                                    grupo: 'Proatividade' },
+  { id: 'p18', texto: 'Sugestão de melhorias',                                       grupo: 'Proatividade' },
+  { id: 'p19', texto: 'Atuação além do básico',                                       grupo: 'Proatividade' },
+  { id: 'p20', texto: 'Assumir responsabilidade sem cobrança',                       grupo: 'Proatividade' },
+  { id: 'p21', texto: 'Respeito e cordialidade',                                     grupo: 'Gentileza no Contato' },
+  { id: 'p22', texto: 'Cuidado na comunicação',                                      grupo: 'Gentileza no Contato' },
+  { id: 'p23', texto: 'Relação profissional e leve',                                 grupo: 'Gentileza no Contato' },
+  { id: 'p24', texto: 'Postura adequada mesmo sob pressão',                          grupo: 'Gentileza no Contato' },
+  { id: 'p25', texto: 'Estabilidade sob pressão',                                    grupo: 'Equilíbrio Emocional' },
+  { id: 'p26', texto: 'Reação diante de problemas',                                  grupo: 'Equilíbrio Emocional' },
+  { id: 'p27', texto: 'Maturidade nas interações',                                   grupo: 'Equilíbrio Emocional' },
+  { id: 'p28', texto: 'Controle emocional (sem impulsividade)',                      grupo: 'Equilíbrio Emocional' },
+  { id: 'p29', texto: 'Busca resolver, não apenas responder',                        grupo: 'Foco na Solução' },
+  { id: 'p30', texto: 'Assume demandas até o fim',                                   grupo: 'Foco na Solução' },
+  { id: 'p31', texto: 'Evita transferir responsabilidade',                           grupo: 'Foco na Solução' },
+  { id: 'p32', texto: 'Apresenta alternativas quando necessário',                    grupo: 'Foco na Solução' },
+];
+
+const P33_LABELS = ['Dificulta muito', 'Dificulta', 'Neutro', 'Facilita', 'Facilita muito'];
+const P34_LABELS = ['Não confio', '', '', '', 'Confio totalmente'];
+
+const CHOICES_P36 = ['Operacional', 'Apoio', 'Parceiro', 'Estratégico'];
+
+// ─────────────────────────────────────────────
+// Estado da aplicação
+// ─────────────────────────────────────────────
+
+const state = {
+  codigo: '',
+  participante: null,
+  empresa: null,
+  respostas: {},
+  totalRequired: 0,
+};
+
+// ─────────────────────────────────────────────
+// API
+// ─────────────────────────────────────────────
+
+async function apiCall(payload) {
+  const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload),
+    redirect: 'follow',
+  });
+  if (!res.ok) throw new Error('Erro de rede. Tente novamente.');
+  return res.json();
+}
+
+// ─────────────────────────────────────────────
+// LocalStorage helpers
+// ─────────────────────────────────────────────
+
+function storageKey(codigo) { return 'radar_csc_draft_' + codigo.toUpperCase(); }
+
+function saveProgress() {
+  if (!state.codigo) return;
+  const draft = {
+    participante: state.participante,
+    empresa: state.empresa,
+    respostas: state.respostas,
+  };
+  localStorage.setItem(storageKey(state.codigo), JSON.stringify(draft));
+  showAutosave();
+}
+
+function loadDraft(codigo) {
+  try {
+    const raw = localStorage.getItem(storageKey(codigo));
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function clearDraft(codigo) {
+  localStorage.removeItem(storageKey(codigo));
+}
+
+let autosaveTimer;
+function showAutosave() {
+  const el = document.getElementById('autosave-indicator');
+  if (!el) return;
+  el.textContent = '✓ Progresso salvo automaticamente';
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
+// ─────────────────────────────────────────────
+// Navegação entre steps
+// ─────────────────────────────────────────────
+
+function showStep(id) {
+  ['step-codigo', 'step-questionario', 'step-sucesso'].forEach(s => {
+    const el = document.getElementById(s);
+    if (el) el.classList.toggle('hidden', s !== id);
+  });
+}
+
+// ─────────────────────────────────────────────
+// Step 1: validação do código
+// ─────────────────────────────────────────────
+
+async function handleValidarCodigo() {
+  const input = document.getElementById('input-codigo');
+  const erroEl = document.getElementById('erro-codigo');
+  const btn = document.getElementById('btn-validar');
+
+  const codigo = input.value.trim().toUpperCase();
+  erroEl.classList.add('hidden');
+
+  if (codigo.length !== 6) {
+    erroEl.textContent = 'O código deve ter 6 caracteres.';
+    erroEl.classList.remove('hidden');
+    input.focus();
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Verificando...';
+
+  try {
+    const data = await apiCall({ action: 'validarCodigo', codigo });
+
+    if (!data.success) {
+      erroEl.textContent = data.error || 'Código inválido.';
+      erroEl.classList.remove('hidden');
+      input.focus();
+      return;
+    }
+
+    state.codigo = codigo;
+    state.participante = data.participante;
+    state.empresa = data.empresa;
+
+    const draft = loadDraft(codigo);
+    if (draft && Object.keys(draft.respostas || {}).length > 0) {
+      showModalDraft(draft);
+    } else {
+      iniciarQuestionario(null);
+    }
+  } catch (err) {
+    erroEl.textContent = err.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Começar avaliação →';
+  }
+}
+
+// ─────────────────────────────────────────────
+// Modal de rascunho
+// ─────────────────────────────────────────────
+
+let pendingDraft = null;
+
+function showModalDraft(draft) {
+  pendingDraft = draft;
+  document.getElementById('modal-draft').classList.remove('hidden');
+}
+
+document.getElementById('btn-draft-continuar').addEventListener('click', () => {
+  document.getElementById('modal-draft').classList.add('hidden');
+  iniciarQuestionario(pendingDraft);
+});
+
+document.getElementById('btn-draft-recomecar').addEventListener('click', () => {
+  document.getElementById('modal-draft').classList.add('hidden');
+  clearDraft(state.codigo);
+  iniciarQuestionario(null);
+});
+
+// ─────────────────────────────────────────────
+// Step 2: construção do questionário
+// ─────────────────────────────────────────────
+
+function iniciarQuestionario(draft) {
+  if (draft) {
+    state.respostas = draft.respostas || {};
+  } else {
+    state.respostas = {};
+  }
+
+  const areas = state.empresa.areas || [];
+  // Total obrigatórios: p1-p32 (32) + p33 + p34 + p35 + p36 + areas.length (p37) = 36 + areas.length
+  state.totalRequired = 36 + areas.length;
+
+  buildForm(areas);
+  showStep('step-questionario');
+  updateProgress();
+
+  if (draft && Object.keys(state.respostas).length > 0) {
+    setTimeout(() => scrollToFirstUnanswered(areas), 100);
+  } else {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+function buildForm(areas) {
+  const container = document.getElementById('form-container');
+  container.innerHTML = '';
+
+  // ── Saudação ──
+  const saudacao = document.createElement('div');
+  saudacao.className = 'card';
+  saudacao.style.cssText = 'margin-bottom:1.5rem;';
+  saudacao.innerHTML = `
+    <p style="font-size:.9375rem;">Olá, <strong>${state.participante.nome}</strong>! Você está avaliando o CSC da <strong>${state.empresa.nome}</strong>.</p>
+    <p style="font-size:.85rem;color:var(--text-muted);margin-top:.375rem;">Este questionário é anônimo. Responda com honestidade — não há resposta certa ou errada.</p>
+  `;
+  container.appendChild(saudacao);
+
+  // ── Bloco 1 ──
+  container.appendChild(makeBlockHeader('bloco1', 'Bloco 1 — Excelência de Serviço', 'Avalie a qualidade do atendimento prestado pelo CSC'));
+  container.appendChild(makeScaleBlock(BLOCO1, 1, 'Nunca', 'Sempre'));
+
+  // Pergunta aberta 1
+  container.appendChild(makeOpenQuestion(
+    'p_aberta_1',
+    'Pergunta aberta',
+    'O que mais facilita — e o que mais dificulta sua experiência com o CSC?',
+    'Compartilhe livremente (opcional)'
+  ));
+
+  // ── Bloco 2 ──
+  container.appendChild(makeBlockHeader('bloco2', 'Bloco 2 — Excelência Comportamental', 'Avalie os comportamentos e atitudes da equipe do CSC'));
+  container.appendChild(makeScaleBlock(BLOCO2, 17, 'Nunca', 'Sempre'));
+
+  // Pergunta aberta 2
+  container.appendChild(makeOpenQuestion(
+    'p_aberta_2',
+    'Pergunta aberta',
+    'Quais comportamentos já são bons (DEVEM MANTER)? E quais comportamentos faltam no CSC (DEVEM ADQUIRIR)?',
+    'Compartilhe livremente (opcional)'
+  ));
+
+  // ── Bloco 3 ──
+  container.appendChild(makeBlockHeader('bloco3', 'Bloco 3 — Visão do Negócio', 'Percepção estratégica sobre o papel do CSC'));
+
+  const bloco3 = document.createElement('div');
+
+  // p33
+  bloco3.appendChild(makeScaleQuestion('p33', 33, 'O CSC hoje facilita ou dificulta sua operação?', P33_LABELS[0], P33_LABELS[4]));
+
+  // p34
+  bloco3.appendChild(makeScaleQuestion('p34', 34, 'O quanto você confia no CSC como parceiro do seu resultado?', 'Não confio', 'Confio totalmente'));
+
+  // p35
+  bloco3.appendChild(makeTextQuestion('p35', 35, 'Se pudesse mudar UMA coisa no CSC hoje, qual seria?', 'Descreva aqui...', true));
+
+  // p36
+  bloco3.appendChild(makeChoiceQuestion('p36', 36, 'De forma geral, o CSC hoje é:', CHOICES_P36));
+
+  // p37 por área (dinâmico)
+  if (areas.length > 0) {
+    const p37Card = document.createElement('div');
+    p37Card.className = 'question-card';
+    p37Card.id = 'q-p37';
+    p37Card.innerHTML = `
+      <div class="question-meta">
+        <div class="question-num">37</div>
+        <div style="flex:1;">
+          <p class="question-text">Avalie cada área do CSC na sua prestação de serviços:</p>
+          <div id="p37-areas"></div>
+        </div>
+      </div>
+    `;
+    const areasContainer = p37Card.querySelector('#p37-areas');
+    areas.forEach(area => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'area-rating';
+      wrapper.style.cssText = 'margin-bottom:.875rem;';
+      wrapper.innerHTML = `
+        <div class="area-rating-label">${escapeHtml(area)}</div>
+        ${makeScaleBtnsHtml('p37_' + area, state.respostas.p37 && state.respostas.p37[area])}
+      `;
+      areasContainer.appendChild(wrapper);
+    });
+    bloco3.appendChild(p37Card);
+  }
+
+  // p38 (opcional)
+  bloco3.appendChild(makeTextQuestion('p38', 38, 'Comentário / Sugestão final', 'Escreva aqui (opcional)...', false));
+
+  container.appendChild(bloco3);
+
+  // Attach events
+  attachScaleEvents(container, areas);
+  attachTextEvents(container);
+  attachChoiceEvents(container);
+
+  // Restore saved answers (visually)
+  restoreAnswers(areas);
+}
+
+// ─────────────────────────────────────────────
+// Construtores de elementos do form
+// ─────────────────────────────────────────────
+
+function makeBlockHeader(cls, title, subtitle) {
+  const el = document.createElement('div');
+  el.className = `block-header ${cls}`;
+  el.innerHTML = `<h2>${title}</h2><p>${subtitle}</p>`;
+  return el;
+}
+
+function makeScaleBlock(questions, startNum, labelMin, labelMax) {
+  const wrapper = document.createElement('div');
+  let currentGroup = '';
+
+  questions.forEach((q, i) => {
+    if (q.grupo !== currentGroup) {
+      currentGroup = q.grupo;
+      const gh = document.createElement('div');
+      gh.className = 'group-header';
+      gh.textContent = q.grupo;
+      wrapper.appendChild(gh);
+    }
+    const card = makeScaleQuestion(q.id, startNum + i, q.texto, labelMin, labelMax);
+    wrapper.appendChild(card);
+  });
+
+  return wrapper;
+}
+
+function makeScaleQuestion(id, num, texto, labelMin, labelMax) {
+  const saved = (id === 'p33' || id === 'p34') ? state.respostas[id] : state.respostas[id];
+  const card = document.createElement('div');
+  card.className = 'question-card' + (saved ? ' answered' : '');
+  card.id = 'q-' + id;
+  card.dataset.question = id;
+  card.innerHTML = `
+    <div class="question-meta">
+      <div class="question-num">${num}</div>
+      <div style="flex:1;">
+        <p class="question-text">${escapeHtml(texto)}</p>
+        <div style="display:flex;align-items:center;gap:.5rem;">
+          <span class="scale-edge-label" style="text-align:right;">${escapeHtml(labelMin)}</span>
+          <div class="scale-btns" data-for="${id}">
+            ${[1,2,3,4,5].map(v => `<button class="scale-btn${saved == v ? ' selected' : ''}" data-value="${v}">${v}</button>`).join('')}
+          </div>
+          <span class="scale-edge-label">${escapeHtml(labelMax)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+  return card;
+}
+
+function makeScaleBtnsHtml(id, saved) {
+  return `
+    <div style="display:flex;align-items:center;gap:.5rem;margin-top:.25rem;">
+      <div class="scale-btns" data-for="${id}">
+        ${[1,2,3,4,5].map(v => `<button class="scale-btn${saved == v ? ' selected' : ''}" data-value="${v}">${v}</button>`).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function makeOpenQuestion(id, label, texto, placeholder) {
+  const saved = state.respostas[id] || '';
+  const el = document.createElement('div');
+  el.className = 'open-question-card';
+  el.id = 'q-' + id;
+  el.innerHTML = `
+    <div class="oq-label">${escapeHtml(label)}</div>
+    <p class="oq-text">${escapeHtml(texto)}</p>
+    <textarea
+      class="form-input"
+      data-for="${id}"
+      placeholder="${escapeHtml(placeholder)}"
+      rows="3"
+    >${escapeHtml(saved)}</textarea>
+  `;
+  return el;
+}
+
+function makeTextQuestion(id, num, texto, placeholder, required) {
+  const saved = state.respostas[id] || '';
+  const el = document.createElement('div');
+  el.className = 'question-card' + (saved ? ' answered' : '');
+  el.id = 'q-' + id;
+  el.dataset.question = id;
+  el.innerHTML = `
+    <div class="question-meta">
+      <div class="question-num">${num}</div>
+      <div style="flex:1;">
+        <p class="question-text">${escapeHtml(texto)}${required ? ' <span style="color:var(--error);">*</span>' : ' <span style="color:var(--text-muted);font-size:.8rem;">(opcional)</span>'}</p>
+        <textarea
+          class="form-input"
+          data-for="${id}"
+          placeholder="${escapeHtml(placeholder)}"
+          rows="3"
+          style="margin-top:.5rem;"
+        >${escapeHtml(saved)}</textarea>
+      </div>
+    </div>
+  `;
+  return el;
+}
+
+function makeChoiceQuestion(id, num, texto, choices) {
+  const saved = state.respostas[id] || '';
+  const el = document.createElement('div');
+  el.className = 'question-card' + (saved ? ' answered' : '');
+  el.id = 'q-' + id;
+  el.dataset.question = id;
+  el.innerHTML = `
+    <div class="question-meta">
+      <div class="question-num">${num}</div>
+      <div style="flex:1;">
+        <p class="question-text" style="margin-bottom:.75rem;">${escapeHtml(texto)}</p>
+        <div class="choice-btns" data-for="${id}">
+          ${choices.map(c => `<button class="choice-btn${saved === c ? ' selected' : ''}" data-value="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+  return el;
+}
+
+// ─────────────────────────────────────────────
+// Event listeners
+// ─────────────────────────────────────────────
+
+function attachScaleEvents(container, areas) {
+  container.querySelectorAll('.scale-btns').forEach(group => {
+    group.addEventListener('click', e => {
+      const btn = e.target.closest('.scale-btn');
+      if (!btn) return;
+      const id = group.dataset.for;
+      const val = parseInt(btn.dataset.value, 10);
+
+      group.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+
+      if (id.startsWith('p37_')) {
+        const area = id.slice(4);
+        if (!state.respostas.p37) state.respostas.p37 = {};
+        state.respostas.p37[area] = val;
+        checkP37Answered(areas);
+      } else {
+        state.respostas[id] = val;
+        const card = document.getElementById('q-' + id);
+        if (card) card.classList.add('answered');
+        const numEl = card && card.querySelector('.question-num');
+        if (numEl) numEl.style.cssText = '';
+      }
+
+      clearError(id);
+      updateProgress();
+      saveProgress();
+    });
+  });
+}
+
+function checkP37Answered(areas) {
+  const card = document.getElementById('q-p37');
+  if (!card) return;
+  const allAnswered = areas.every(a => state.respostas.p37 && state.respostas.p37[a] != null);
+  card.classList.toggle('answered', allAnswered);
+}
+
+function attachTextEvents(container) {
+  container.querySelectorAll('textarea[data-for]').forEach(ta => {
+    ta.addEventListener('input', () => {
+      const id = ta.dataset.for;
+      state.respostas[id] = ta.value;
+      const card = document.getElementById('q-' + id);
+      if (card) card.classList.toggle('answered', ta.value.trim().length > 0);
+      clearError(id);
+      updateProgress();
+      saveProgress();
+    });
+  });
+}
+
+function attachChoiceEvents(container) {
+  container.querySelectorAll('.choice-btns').forEach(group => {
+    group.addEventListener('click', e => {
+      const btn = e.target.closest('.choice-btn');
+      if (!btn) return;
+      const id = group.dataset.for;
+      const val = btn.dataset.value;
+
+      group.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+
+      state.respostas[id] = val;
+      const card = document.getElementById('q-' + id);
+      if (card) card.classList.add('answered');
+
+      clearError(id);
+      updateProgress();
+      saveProgress();
+    });
+  });
+}
+
+// ─────────────────────────────────────────────
+// Progresso
+// ─────────────────────────────────────────────
+
+function countAnswered(areas) {
+  let count = 0;
+  for (let i = 1; i <= 34; i++) {
+    if (state.respostas['p' + i] != null) count++;
+  }
+  if (state.respostas.p35 && state.respostas.p35.trim()) count++;
+  if (state.respostas.p36) count++;
+  (areas || []).forEach(a => {
+    if (state.respostas.p37 && state.respostas.p37[a] != null) count++;
+  });
+  return count;
+}
+
+function updateProgress() {
+  const areas = state.empresa ? state.empresa.areas || [] : [];
+  const answered = countAnswered(areas);
+  const total = state.totalRequired;
+  const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
+
+  const fill = document.getElementById('progress-fill');
+  const countEl = document.getElementById('progress-count');
+  if (fill) fill.style.width = pct + '%';
+  if (countEl) countEl.textContent = answered + ' de ' + total;
+}
+
+// ─────────────────────────────────────────────
+// Restaurar respostas salvas visualmente
+// ─────────────────────────────────────────────
+
+function restoreAnswers(areas) {
+  // Scale questions p1-p34
+  for (let i = 1; i <= 34; i++) {
+    const id = 'p' + i;
+    const val = state.respostas[id];
+    if (val == null) continue;
+    const group = document.querySelector(`.scale-btns[data-for="${id}"]`);
+    if (!group) continue;
+    group.querySelectorAll('.scale-btn').forEach(b => {
+      b.classList.toggle('selected', parseInt(b.dataset.value) === val);
+    });
+    const card = document.getElementById('q-' + id);
+    if (card) card.classList.add('answered');
+  }
+
+  // p37 per area
+  if (state.respostas.p37) {
+    areas.forEach(area => {
+      const val = state.respostas.p37[area];
+      if (val == null) return;
+      const group = document.querySelector(`.scale-btns[data-for="p37_${area}"]`);
+      if (!group) return;
+      group.querySelectorAll('.scale-btn').forEach(b => {
+        b.classList.toggle('selected', parseInt(b.dataset.value) === val);
+      });
+    });
+    checkP37Answered(areas);
+  }
+
+  // p36 choice
+  if (state.respostas.p36) {
+    const group = document.querySelector('.choice-btns[data-for="p36"]');
+    if (group) {
+      group.querySelectorAll('.choice-btn').forEach(b => {
+        b.classList.toggle('selected', b.dataset.value === state.respostas.p36);
+      });
+      const card = document.getElementById('q-p36');
+      if (card) card.classList.add('answered');
+    }
+  }
+}
+
+function scrollToFirstUnanswered(areas) {
+  const requiredIds = [];
+  for (let i = 1; i <= 34; i++) requiredIds.push('p' + i);
+  requiredIds.push('p35', 'p36');
+  if (areas && areas.length > 0) requiredIds.push('p37');
+
+  for (const id of requiredIds) {
+    let unanswered = false;
+    if (id === 'p37') {
+      unanswered = !areas.every(a => state.respostas.p37 && state.respostas.p37[a] != null);
+    } else if (id === 'p35') {
+      unanswered = !state.respostas.p35 || !state.respostas.p35.trim();
+    } else if (id === 'p36') {
+      unanswered = !state.respostas.p36;
+    } else {
+      unanswered = state.respostas[id] == null;
+    }
+
+    if (unanswered) {
+      const el = document.getElementById('q-' + id);
+      if (el) {
+        const top = el.getBoundingClientRect().top + window.scrollY - 120;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
+      return;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// Validação e envio
+// ─────────────────────────────────────────────
+
+function clearError(id) {
+  const card = document.getElementById('q-' + id);
+  if (card) card.classList.remove('required-error');
+}
+
+function validateForm() {
+  const areas = state.empresa.areas || [];
+  const errors = [];
+
+  for (let i = 1; i <= 34; i++) {
+    if (state.respostas['p' + i] == null) {
+      errors.push('p' + i);
+      const card = document.getElementById('q-p' + i);
+      if (card) card.classList.add('required-error');
+    }
+  }
+
+  if (!state.respostas.p35 || !state.respostas.p35.trim()) {
+    errors.push('p35');
+    const card = document.getElementById('q-p35');
+    if (card) card.classList.add('required-error');
+  }
+
+  if (!state.respostas.p36) {
+    errors.push('p36');
+    const card = document.getElementById('q-p36');
+    if (card) card.classList.add('required-error');
+  }
+
+  areas.forEach(area => {
+    if (!state.respostas.p37 || state.respostas.p37[area] == null) {
+      errors.push('p37_' + area);
+      const card = document.getElementById('q-p37');
+      if (card) card.classList.add('required-error');
+    }
+  });
+
+  return errors;
+}
+
+async function handleSubmit() {
+  const btn = document.getElementById('btn-submit');
+  const errorEl = document.getElementById('submit-error');
+
+  errorEl.classList.add('hidden');
+  const errors = validateForm();
+
+  if (errors.length > 0) {
+    errorEl.textContent = `Por favor, responda todas as perguntas obrigatórias (${errors.length} pendente${errors.length > 1 ? 's' : ''}).`;
+    errorEl.classList.remove('hidden');
+
+    // Scroll to first error
+    const firstError = document.querySelector('.required-error');
+    if (firstError) {
+      const top = firstError.getBoundingClientRect().top + window.scrollY - 120;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Enviando...';
+
+  try {
+    const payload = {
+      action: 'salvarResposta',
+      codigo: state.codigo,
+      participante_id: state.participante.id,
+      aplicacao_id: state.participante.aplicacao_id,
+      empresa_id: state.participante.empresa_id,
+      respostas: { ...state.respostas },
+    };
+
+    const result = await apiCall(payload);
+
+    if (!result.success) {
+      errorEl.textContent = result.error || 'Erro ao enviar. Tente novamente.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+
+    clearDraft(state.codigo);
+    showStep('step-sucesso');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Enviar avaliação';
+  }
+}
+
+// ─────────────────────────────────────────────
+// Utilitários
+// ─────────────────────────────────────────────
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ─────────────────────────────────────────────
+// Inicialização
+// ─────────────────────────────────────────────
+
+function init() {
+  // Verifica se código veio na URL
+  const params = new URLSearchParams(window.location.search);
+  const codigoUrl = params.get('codigo');
+  if (codigoUrl) {
+    document.getElementById('input-codigo').value = codigoUrl.toUpperCase();
+  }
+
+  // Validar com Enter
+  document.getElementById('input-codigo').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleValidarCodigo();
+  });
+
+  // Formatar input em maiúsculas em tempo real
+  document.getElementById('input-codigo').addEventListener('input', function() {
+    const pos = this.selectionStart;
+    this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    this.setSelectionRange(pos, pos);
+  });
+
+  document.getElementById('btn-validar').addEventListener('click', handleValidarCodigo);
+  document.getElementById('btn-submit').addEventListener('click', handleSubmit);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
