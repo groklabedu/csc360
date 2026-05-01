@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RADAR CSC 360° — Empresa</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <span class="logo">RADAR CSC <span>360°</span></span>
+  <button onclick="logout()" class="btn btn-secondary" style="margin-left:auto;font-size:.875rem;padding:.4rem .875rem;">Sair</button>
+</header>
+
+<main class="app-main">
+
+  <nav id="breadcrumb" class="breadcrumb"></nav>
+
+  <!-- Info empresa -->
+  <div id="loading" style="text-align:center;padding:3rem;color:var(--text-muted);">
+    <span class="spinner dark"></span> Carregando...
+  </div>
+
+  <div id="conteudo" class="hidden">
+
+    <!-- Card empresa -->
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
+        <div style="flex:1;">
+          <h2 id="empresa-nome" style="font-size:1.375rem;font-weight:700;margin-bottom:.5rem;"></h2>
+          <div id="empresa-areas" style="display:flex;flex-wrap:wrap;gap:.375rem;margin-bottom:.75rem;"></div>
+          <p id="empresa-meta" style="font-size:.85rem;color:var(--text-muted);"></p>
+        </div>
+        <button id="btn-editar-empresa" class="btn btn-outline" style="flex-shrink:0;">
+          ✏️ Editar empresa
+        </button>
+      </div>
+    </div>
+
+    <!-- Aplicações -->
+    <div class="page-header" style="margin-bottom:1rem;">
+      <h3 style="font-size:1.125rem;font-weight:700;">Aplicações</h3>
+      <button id="btn-nova-aplicacao" class="btn btn-primary">+ Nova Aplicação</button>
+    </div>
+
+    <div id="aplicacoes-lista" class="aplicacao-list"></div>
+
+    <div id="aplicacoes-empty" class="card hidden" style="text-align:center;padding:2.5rem;">
+      <p style="color:var(--text-muted);">Nenhuma aplicação criada ainda.</p>
+    </div>
+
+    <div id="limite-aviso" class="alert hidden" style="margin-top:.75rem;background:var(--primary-light);color:var(--primary);border-radius:var(--radius);padding:.75rem 1rem;font-size:.875rem;"></div>
+
+  </div>
+
+</main>
+
+<!-- Modal: editar empresa -->
+<div id="modal-empresa" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:500px;">
+    <h3>Editar Empresa</h3>
+    <div class="form-group" style="margin-top:1.25rem;">
+      <label class="form-label">Nome <span style="color:var(--error);">*</span></label>
+      <input id="edit-nome" class="form-input" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Áreas do CSC <span style="color:var(--error);">*</span></label>
+      <div id="edit-tag-areas" class="tag-container"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Máximo de aplicações</label>
+      <select id="edit-max" class="form-input">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>
+    </div>
+    <div id="edit-erro" class="alert alert-error hidden" style="margin-bottom:.75rem;"></div>
+    <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
+      <button id="btn-edit-cancelar" class="btn btn-secondary" style="flex:1;">Cancelar</button>
+      <button id="btn-edit-salvar"   class="btn btn-primary"    style="flex:2;">Salvar Alterações</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: nova aplicação -->
+<div id="modal-aplicacao" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:460px;">
+    <h3>Nova Aplicação</h3>
+    <p style="font-size:.875rem;color:var(--text-muted);margin:.5rem 0 1.25rem;">
+      Cada aplicação representa uma rodada de avaliação (ex: "1ª Rodada — Março/2025").
+    </p>
+    <div class="form-group">
+      <label class="form-label">Nome da aplicação <span style="color:var(--error);">*</span></label>
+      <input
+        id="ap-nome"
+        class="form-input"
+        type="text"
+        placeholder="Ex: 1ª Rodada — Março/2025"
+      >
+    </div>
+    <div id="ap-erro" class="alert alert-error hidden" style="margin-bottom:.75rem;"></div>
+    <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
+      <button id="btn-ap-cancelar" class="btn btn-secondary" style="flex:1;">Cancelar</button>
+      <button id="btn-ap-criar"    class="btn btn-primary"    style="flex:2;">Criar Aplicação</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="../config.js"></script>
+<script src="admin.js"></script>
+<script>
+let empresa    = null;
+let aplicacoes = [];
+let tagInput   = null;
+
+// ── Init ──
+
+async function init() {
+  if (!checkAuth()) return;
+
+  const id = getParam('id');
+  if (!id) { window.location.replace('dashboard.html'); return; }
+
+  try {
+    const [empRes, apRes] = await Promise.all([
+      apiCall('listarEmpresas'),
+      apiCall('listarAplicacoes', { empresa_id: id }),
+    ]);
+
+    if (!empRes.success) throw new Error(empRes.error);
+    empresa = (empRes.empresas || []).find(e => e.id === id);
+    if (!empresa) { window.location.replace('dashboard.html'); return; }
+
+    aplicacoes = apRes.success ? (apRes.aplicacoes || []) : [];
+
+    renderEmpresa();
+    renderAplicacoes();
+    setupModals();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('conteudo').classList.remove('hidden');
+
+  } catch (err) {
+    document.getElementById('loading').innerHTML =
+      '<p style="color:var(--error);">' + escHtml(err.message) + '</p>';
+  }
+}
+
+// ── Render empresa ──
+
+function renderEmpresa() {
+  renderBreadcrumb([
+    { label: 'Empresas', href: 'dashboard.html' },
+    { label: empresa.nome },
+  ]);
+
+  document.getElementById('empresa-nome').textContent = empresa.nome;
+
+  const areasEl = document.getElementById('empresa-areas');
+  const areas = Array.isArray(empresa.areas) ? empresa.areas : [];
+  areasEl.innerHTML = areas.map(a => `<span class="badge badge-blue">${escHtml(a)}</span>`).join('') ||
+    '<span style="font-size:.85rem;color:var(--text-muted);">Sem áreas definidas</span>';
+
+  document.getElementById('empresa-meta').textContent =
+    'Máximo de ' + empresa.max_aplicacoes + ' aplicação' + (empresa.max_aplicacoes > 1 ? 'ões' : '') +
+    ' · Criada em ' + fmtDate(empresa.criado_em);
+}
+
+// ── Render aplicações ──
+
+function renderAplicacoes() {
+  const lista = document.getElementById('aplicacoes-lista');
+  const empty = document.getElementById('aplicacoes-empty');
+  const aviso = document.getElementById('limite-aviso');
+  const btnNova = document.getElementById('btn-nova-aplicacao');
+
+  lista.innerHTML = '';
+
+  if (aplicacoes.length === 0) {
+    empty.classList.remove('hidden');
+  } else {
+    empty.classList.add('hidden');
+    aplicacoes.forEach(ap => {
+      const card = document.createElement('div');
+      card.className = 'aplicacao-card';
+      card.innerHTML = `
+        <div style="flex:1;">
+          <div class="ap-nome">${escHtml(ap.nome)}</div>
+          <div class="ap-meta">Aplicação ${escHtml(String(ap.ordem))} · Criada em ${fmtDate(ap.criado_em)}</div>
+        </div>
+        <a
+          href="participantes.html?aplicacao_id=${encodeURIComponent(ap.id)}&empresa_id=${encodeURIComponent(empresa.id)}"
+          class="btn btn-outline"
+          style="font-size:.8rem;padding:.4rem .875rem;white-space:nowrap;"
+        >
+          Participantes →
+        </a>
+      `;
+      lista.appendChild(card);
+    });
+  }
+
+  const max = parseInt(empresa.max_aplicacoes, 10) || 4;
+  if (aplicacoes.length >= max) {
+    btnNova.disabled = true;
+    aviso.textContent = 'Limite de ' + max + ' aplicações atingido para esta empresa.';
+    aviso.classList.remove('hidden');
+  } else {
+    btnNova.disabled = false;
+    aviso.classList.add('hidden');
+  }
+}
+
+// ── Modals ──
+
+function setupModals() {
+  // Editar empresa
+  document.getElementById('btn-editar-empresa').addEventListener('click', () => {
+    const areas = Array.isArray(empresa.areas) ? empresa.areas : [];
+    document.getElementById('edit-nome').value = empresa.nome;
+    document.getElementById('edit-max').value  = empresa.max_aplicacoes || '4';
+    document.getElementById('edit-erro').classList.add('hidden');
+    tagInput = initTagInput('edit-tag-areas', areas);
+    showModal('modal-empresa');
+    setTimeout(() => document.getElementById('edit-nome').focus(), 60);
+  });
+  document.getElementById('btn-edit-cancelar').addEventListener('click', () => hideModal('modal-empresa'));
+  document.getElementById('modal-empresa').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-empresa')) hideModal('modal-empresa');
+  });
+  document.getElementById('btn-edit-salvar').addEventListener('click', salvarEmpresa);
+
+  // Nova aplicação
+  document.getElementById('btn-nova-aplicacao').addEventListener('click', () => {
+    document.getElementById('ap-nome').value = '';
+    document.getElementById('ap-erro').classList.add('hidden');
+    showModal('modal-aplicacao');
+    setTimeout(() => document.getElementById('ap-nome').focus(), 60);
+  });
+  document.getElementById('btn-ap-cancelar').addEventListener('click', () => hideModal('modal-aplicacao'));
+  document.getElementById('modal-aplicacao').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-aplicacao')) hideModal('modal-aplicacao');
+  });
+  document.getElementById('ap-nome').addEventListener('keydown', e => {
+    if (e.key === 'Enter') criarAplicacao();
+  });
+  document.getElementById('btn-ap-criar').addEventListener('click', criarAplicacao);
+}
+
+async function salvarEmpresa() {
+  const nome  = document.getElementById('edit-nome').value.trim();
+  const areas = tagInput ? tagInput.getTags() : [];
+  const max   = parseInt(document.getElementById('edit-max').value, 10);
+  const erroEl = document.getElementById('edit-erro');
+  const btn    = document.getElementById('btn-edit-salvar');
+
+  erroEl.classList.add('hidden');
+  if (!nome) {
+    erroEl.textContent = 'Nome obrigatório.';
+    erroEl.classList.remove('hidden');
+    return;
+  }
+  if (areas.length === 0) {
+    erroEl.textContent = 'Adicione pelo menos uma área.';
+    erroEl.classList.remove('hidden');
+    return;
+  }
+
+  setLoading(btn, true);
+  try {
+    const r = await apiCall('editarEmpresa', { id: empresa.id, nome, areas, max_aplicacoes: max });
+    if (!r.success) {
+      erroEl.textContent = r.error;
+      erroEl.classList.remove('hidden');
+      return;
+    }
+    empresa.nome           = nome;
+    empresa.areas          = areas;
+    empresa.max_aplicacoes = max;
+    hideModal('modal-empresa');
+    renderEmpresa();
+    renderAplicacoes();
+    showToast('Empresa atualizada!');
+  } catch (err) {
+    erroEl.textContent = err.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+async function criarAplicacao() {
+  const nome   = document.getElementById('ap-nome').value.trim();
+  const erroEl = document.getElementById('ap-erro');
+  const btn    = document.getElementById('btn-ap-criar');
+
+  erroEl.classList.add('hidden');
+  if (!nome) {
+    erroEl.textContent = 'Nome da aplicação é obrigatório.';
+    erroEl.classList.remove('hidden');
+    document.getElementById('ap-nome').focus();
+    return;
+  }
+
+  setLoading(btn, true);
+  try {
+    const r = await apiCall('criarAplicacao', { empresa_id: empresa.id, nome });
+    if (!r.success) {
+      erroEl.textContent = r.error;
+      erroEl.classList.remove('hidden');
+      return;
+    }
+    hideModal('modal-aplicacao');
+
+    // Reload aplicacoes
+    const apRes = await apiCall('listarAplicacoes', { empresa_id: empresa.id });
+    aplicacoes  = apRes.success ? (apRes.aplicacoes || []) : aplicacoes;
+    renderAplicacoes();
+    showToast('Aplicação criada!');
+
+  } catch (err) {
+    erroEl.textContent = err.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>

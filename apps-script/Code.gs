@@ -9,7 +9,7 @@ const SHEET_ID = '1JiLlzS_neUIksKnaSWf2dh2joq0nxquPgo4JvqHAzBw';
 // Senha do admin — substitua pelo hash SHA-256 da senha desejada
 // Para gerar: https://emn178.github.io/online-tools/sha256.html
 // Exemplo: hash de "radar2024" = altere para sua senha real
-const ADMIN_PASSWORD_HASH = 'COLE_AQUI_O_HASH_SHA256_DA_SENHA_ADMIN';
+const ADMIN_PASSWORD_HASH = '1dd87fb75ec72ae1dda8c1d5e3c25c3ed3e1d41aaabd0a37d66e971e33a70120';
 
 // ─────────────────────────────────────────────
 // Entry point

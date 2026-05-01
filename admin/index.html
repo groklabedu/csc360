@@ -7,16 +7,116 @@
   <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
+
 <header class="app-header">
   <span class="logo">RADAR CSC <span>360°</span></span>
 </header>
+
 <main class="app-main">
-  <div class="card" style="max-width:400px;margin:3rem auto;text-align:center;">
-    <div style="font-size:2rem;margin-bottom:1rem;">🔐</div>
-    <h1 style="font-size:1.25rem;margin-bottom:.5rem;">Painel Administrativo</h1>
-    <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:1.5rem;">Em construção — disponível na Etapa 2</p>
-    <a href="../responder.html" class="btn btn-outline">← Voltar ao questionário</a>
+  <div class="card" style="max-width:400px;margin:2.5rem auto;">
+
+    <div style="text-align:center;margin-bottom:1.75rem;">
+      <div style="font-size:2.25rem;margin-bottom:.75rem;">🔐</div>
+      <h1 style="font-size:1.25rem;font-weight:700;margin-bottom:.25rem;">Acesso Administrativo</h1>
+      <p style="font-size:.875rem;color:var(--text-muted);">RADAR CSC 360°</p>
+    </div>
+
+    <div id="setup-warning" class="alert alert-error hidden" style="margin-bottom:1.25rem;">
+      ⚠️ Configure <code>APPS_SCRIPT_URL</code> em <code>config.js</code> antes de continuar.
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="senha">Senha</label>
+      <input
+        id="senha"
+        class="form-input"
+        type="password"
+        placeholder="Digite a senha"
+        autocomplete="current-password"
+      >
+    </div>
+
+    <div id="erro-login" class="alert alert-error hidden" style="margin-bottom:.75rem;"></div>
+
+    <button id="btn-login" class="btn btn-primary btn-full btn-lg">
+      Entrar
+    </button>
+
+    <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border);font-size:.8rem;color:var(--text-muted);">
+      <strong>Como configurar a senha:</strong><br>
+      Gere o hash SHA-256 em
+      <a href="https://emn178.github.io/online-tools/sha256.html" target="_blank" rel="noopener" style="color:var(--primary);">emn178.github.io/sha256</a>
+      e cole no <code>ADMIN_PASSWORD_HASH</code> do <code>Code.gs</code>.
+    </div>
+
   </div>
 </main>
+
+<div id="toast"></div>
+
+<script src="../config.js"></script>
+<script src="admin.js"></script>
+<script>
+function init() {
+  if (sessionStorage.getItem('admin_token')) {
+    window.location.replace('dashboard.html');
+    return;
+  }
+
+  if (CONFIG.APPS_SCRIPT_URL.includes('COLE_AQUI')) {
+    document.getElementById('setup-warning').classList.remove('hidden');
+    document.getElementById('btn-login').disabled = true;
+  }
+
+  document.getElementById('senha').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleLogin();
+  });
+  document.getElementById('btn-login').addEventListener('click', handleLogin);
+}
+
+async function handleLogin() {
+  const senhaInput = document.getElementById('senha');
+  const erroEl    = document.getElementById('erro-login');
+  const btn       = document.getElementById('btn-login');
+
+  erroEl.classList.add('hidden');
+  const senha = senhaInput.value;
+
+  if (!senha) {
+    erroEl.textContent = 'Digite a senha.';
+    erroEl.classList.remove('hidden');
+    senhaInput.focus();
+    return;
+  }
+
+  setLoading(btn, true);
+
+  try {
+    const hash   = await sha256(senha);
+    const result = await apiCall('adminLogin', { passwordHash: hash });
+
+    if (!result.success) {
+      erroEl.textContent = result.error || 'Senha incorreta.';
+      erroEl.classList.remove('hidden');
+      senhaInput.value = '';
+      senhaInput.focus();
+      return;
+    }
+
+    sessionStorage.setItem('admin_token', result.token);
+    sessionStorage.setItem('admin_token_ts', Date.now().toString());
+    window.location.replace('dashboard.html');
+
+  } catch (err) {
+    erroEl.textContent = err.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
 </body>
 </html>

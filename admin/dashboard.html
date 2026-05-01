@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RADAR CSC 360° — Empresas</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <span class="logo">RADAR CSC <span>360°</span></span>
+  <button onclick="logout()" class="btn btn-secondary" style="margin-left:auto;font-size:.875rem;padding:.4rem .875rem;">
+    Sair
+  </button>
+</header>
+
+<main class="app-main">
+
+  <div class="page-header">
+    <h1 class="page-title">Empresas</h1>
+    <button id="btn-nova-empresa" class="btn btn-primary">+ Nova Empresa</button>
+  </div>
+
+  <div id="loading" style="text-align:center;padding:3rem;color:var(--text-muted);">
+    <span class="spinner dark"></span> Carregando...
+  </div>
+
+  <div id="empresas-grid" class="empresa-grid hidden"></div>
+
+  <div id="empty-state" class="card hidden" style="text-align:center;padding:3rem 2rem;">
+    <div style="font-size:3rem;margin-bottom:1rem;">🏢</div>
+    <h3 style="margin-bottom:.5rem;">Nenhuma empresa cadastrada</h3>
+    <p style="color:var(--text-muted);font-size:.9rem;">Clique em "+ Nova Empresa" para começar.</p>
+  </div>
+
+</main>
+
+<!-- Modal: criar/editar empresa -->
+<div id="modal-empresa" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:500px;">
+
+    <h3 id="modal-titulo">Nova Empresa</h3>
+
+    <div class="form-group" style="margin-top:1.25rem;">
+      <label class="form-label">
+        Nome da empresa <span style="color:var(--error);">*</span>
+      </label>
+      <input id="campo-nome" class="form-input" type="text" placeholder="Ex: ABC Indústria Ltda">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">
+        Áreas do CSC avaliadas <span style="color:var(--error);">*</span>
+      </label>
+      <div id="tag-areas" class="tag-container"></div>
+      <p style="font-size:.78rem;color:var(--text-muted);margin-top:.375rem;">
+        Digite cada área e pressione <kbd style="font-size:.75rem;padding:.1em .3em;border:1px solid var(--border);border-radius:3px;">Enter</kbd>
+      </p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Máximo de aplicações</label>
+      <select id="campo-max" class="form-input">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4" selected>4</option>
+      </select>
+    </div>
+
+    <div id="modal-erro" class="alert alert-error hidden" style="margin-bottom:.75rem;"></div>
+
+    <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
+      <button id="btn-cancelar" class="btn btn-secondary" style="flex:1;">Cancelar</button>
+      <button id="btn-salvar" class="btn btn-primary" style="flex:2;">Criar Empresa</button>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="../config.js"></script>
+<script src="admin.js"></script>
+<script>
+let tagInput      = null;
+let editingId     = null;
+let empresasCache = [];
+
+// ── Init ──
+
+async function init() {
+  if (!checkAuth()) return;
+  await carregarEmpresas();
+  setupModal();
+}
+
+// ── Carregar empresas ──
+
+async function carregarEmpresas() {
+  document.getElementById('loading').style.display = '';
+  document.getElementById('empresas-grid').classList.add('hidden');
+  document.getElementById('empty-state').classList.add('hidden');
+
+  try {
+    const r = await apiCall('listarEmpresas');
+    if (!r.success) throw new Error(r.error);
+    empresasCache = r.empresas || [];
+    renderEmpresas(empresasCache);
+  } catch (err) {
+    document.getElementById('loading').innerHTML =
+      '<p style="color:var(--error);">' + escHtml(err.message) + '</p>';
+  }
+}
+
+function renderEmpresas(empresas) {
+  document.getElementById('loading').style.display = 'none';
+  const grid  = document.getElementById('empresas-grid');
+  const empty = document.getElementById('empty-state');
+
+  if (!empresas || empresas.length === 0) {
+    empty.classList.remove('hidden');
+    return;
+  }
+
+  grid.innerHTML = '';
+  empresas.forEach(e => {
+    const areas = Array.isArray(e.areas) ? e.areas : [];
+    const card  = document.createElement('div');
+    card.className = 'empresa-card';
+    card.style.cssText = 'position:relative;';
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;margin-bottom:.75rem;">
+        <h3 style="font-size:1.0625rem;font-weight:700;line-height:1.3;">${escHtml(e.nome)}</h3>
+        <button
+          class="btn-icon"
+          title="Editar empresa"
+          data-id="${escHtml(e.id)}"
+          data-nome="${escHtml(e.nome)}"
+          data-max="${escHtml(e.max_aplicacoes)}"
+          onclick="abrirEditar(event)"
+          style="flex-shrink:0;"
+        >✏️</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:1rem;">
+        ${areas.map(a => `<span class="badge badge-blue">${escHtml(a)}</span>`).join('') ||
+          '<span style="font-size:.82rem;color:var(--text-muted);">Sem áreas</span>'}
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:.8rem;color:var(--text-muted);">Máx. ${escHtml(e.max_aplicacoes)} aplicações</span>
+        <a
+          href="empresa.html?id=${encodeURIComponent(e.id)}"
+          class="btn btn-outline"
+          style="font-size:.8rem;padding:.35rem .75rem;"
+          onclick="event.stopPropagation();"
+        >Ver aplicações →</a>
+      </div>
+    `;
+    card.addEventListener('click', (ev) => {
+      if (ev.target.closest('button, a')) return;
+      window.location.href = 'empresa.html?id=' + encodeURIComponent(e.id);
+    });
+    grid.appendChild(card);
+  });
+
+  grid.classList.remove('hidden');
+}
+
+// ── Modal ──
+
+function setupModal() {
+  document.getElementById('btn-nova-empresa').addEventListener('click', () => {
+    editingId = null;
+    document.getElementById('modal-titulo').textContent  = 'Nova Empresa';
+    document.getElementById('btn-salvar').textContent    = 'Criar Empresa';
+    document.getElementById('campo-nome').value          = '';
+    document.getElementById('campo-max').value           = '4';
+    document.getElementById('modal-erro').classList.add('hidden');
+    tagInput = initTagInput('tag-areas', []);
+    showModal('modal-empresa');
+    setTimeout(() => document.getElementById('campo-nome').focus(), 60);
+  });
+
+  document.getElementById('btn-cancelar').addEventListener('click', () => hideModal('modal-empresa'));
+  document.getElementById('modal-empresa').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-empresa')) hideModal('modal-empresa');
+  });
+  document.getElementById('campo-nome').addEventListener('keydown', e => {
+    if (e.key === 'Enter') salvarEmpresa();
+  });
+  document.getElementById('btn-salvar').addEventListener('click', salvarEmpresa);
+}
+
+function abrirEditar(e) {
+  e.stopPropagation();
+  const btn  = e.currentTarget;
+  const id   = btn.dataset.id;
+  const nome = btn.dataset.nome;
+  const max  = btn.dataset.max;
+  const emp  = empresasCache.find(x => x.id === id);
+  const areas = emp ? (Array.isArray(emp.areas) ? emp.areas : []) : [];
+
+  editingId = id;
+  document.getElementById('modal-titulo').textContent = 'Editar Empresa';
+  document.getElementById('btn-salvar').textContent   = 'Salvar Alterações';
+  document.getElementById('campo-nome').value         = nome;
+  document.getElementById('campo-max').value          = max || '4';
+  document.getElementById('modal-erro').classList.add('hidden');
+  tagInput = initTagInput('tag-areas', areas);
+  showModal('modal-empresa');
+  setTimeout(() => document.getElementById('campo-nome').focus(), 60);
+}
+
+async function salvarEmpresa() {
+  const nome  = document.getElementById('campo-nome').value.trim();
+  const areas = tagInput ? tagInput.getTags() : [];
+  const max   = parseInt(document.getElementById('campo-max').value, 10);
+  const erroEl = document.getElementById('modal-erro');
+  const btn    = document.getElementById('btn-salvar');
+
+  erroEl.classList.add('hidden');
+
+  if (!nome) {
+    erroEl.textContent = 'Nome da empresa é obrigatório.';
+    erroEl.classList.remove('hidden');
+    document.getElementById('campo-nome').focus();
+    return;
+  }
+  if (areas.length === 0) {
+    erroEl.textContent = 'Adicione pelo menos uma área do CSC.';
+    erroEl.classList.remove('hidden');
+    return;
+  }
+
+  setLoading(btn, true);
+  try {
+    const action  = editingId ? 'editarEmpresa' : 'criarEmpresa';
+    const payload = editingId
+      ? { id: editingId, nome, areas, max_aplicacoes: max }
+      : { nome, areas, max_aplicacoes: max };
+
+    const r = await apiCall(action, payload);
+    if (!r.success) {
+      erroEl.textContent = r.error;
+      erroEl.classList.remove('hidden');
+      return;
+    }
+
+    hideModal('modal-empresa');
+    showToast(editingId ? 'Empresa atualizada!' : 'Empresa criada com sucesso!');
+    await carregarEmpresas();
+
+  } catch (err) {
+    erroEl.textContent = err.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>
