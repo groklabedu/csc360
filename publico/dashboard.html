@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RADAR CSC 360°</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; }
+
+    /* ── Gate ── */
+    .gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f1f5f9; }
+    .gate-card { background: #fff; border-radius: 12px; padding: 3rem 2.5rem; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,.08); max-width: 360px; }
+    .gate-icon { font-size: 3rem; margin-bottom: 1rem; }
+    .gate-card h2 { font-size: 1.125rem; color: #374151; }
+    .spinner { display: inline-block; width: 22px; height: 22px; border: 2.5px solid #e2e8f0; border-top-color: #1d4ed8; border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: .75rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Layout ── */
+    .dash-wrap { max-width: 1200px; margin: 0 auto; padding: 0 1rem 3rem; }
+
+    /* ── Header ── */
+    .dash-header { background: #0f2942; color: #fff; padding: 1.25rem 1.5rem; }
+    .dash-header-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+    .dash-logo-area { display: flex; align-items: center; gap: .875rem; flex: 1; min-width: 200px; }
+    .dash-logo-icon { width: 48px; height: 48px; background: #fff; -webkit-mask-image: url('../assets/icons/icon-radar-logo.svg'); mask-image: url('../assets/icons/icon-radar-logo.svg'); -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; flex-shrink: 0; }
+    .dash-title { font-size: 1.5rem; font-weight: 800; line-height: 1.2; letter-spacing: -.02em; }
+    .dash-subtitle { font-size: .72rem; color: #94a3b8; margin-top: .2rem; line-height: 1.4; }
+    .dash-periods { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+    .period-item { display: flex; align-items: center; gap: .5rem; }
+    .period-icon { flex-shrink: 0; }
+    .period-label { font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+    .period-name  { font-size: .7rem; color: #cbd5e1; margin-top: .1rem; }
+    .periodo-box  { background: rgba(255,255,255,.12); border-radius: 8px; padding: .5rem .875rem; text-align: center; }
+    .periodo-box small { font-size: .65rem; color: #94a3b8; display: block; text-transform: uppercase; letter-spacing: .06em; }
+    .periodo-box strong { font-size: .8rem; color: #fff; display: block; margin-top: .15rem; }
+
+    /* ── Mask icon helper (via inline style) ── */
+    .ico { display: inline-block; flex-shrink: 0; -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; }
+
+    /* ── Main 3-col grid ── */
+    .dash-main { display: grid; grid-template-columns: 200px 1fr 200px; gap: 1rem; margin-top: 1rem; align-items: start; }
+    @media (max-width: 860px) { .dash-main { grid-template-columns: 1fr; } }
+
+    /* ── Cards ── */
+    .card { background: #fff; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 6px rgba(0,0,0,.06); }
+    .card-title { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #64748b; margin-bottom: .875rem; }
+
+    /* ── Como ler ── */
+    .como-ler-item { display: flex; align-items: flex-start; gap: .5rem; margin-bottom: .625rem; font-size: .75rem; line-height: 1.4; }
+    .como-ler-num { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .7rem; flex-shrink: 0; }
+    .participants-line { display: flex; align-items: center; gap: .5rem; margin-top: 1rem; padding-top: .875rem; border-top: 1px solid #f1f5f9; font-size: .8rem; color: #64748b; }
+
+    /* ── Radar section ── */
+    .radar-section { display: flex; flex-direction: column; align-items: center; }
+    .category-labels { display: flex; justify-content: space-between; width: 100%; margin-bottom: .5rem; gap: .5rem; }
+    .cat-label { flex: 1; text-align: center; font-size: .65rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: .35rem .5rem; border-radius: 6px; }
+    .cat-service    { background: #dbeafe; color: #1d4ed8; }
+    .cat-behavioral { background: #ffedd5; color: #ea580c; }
+    .radar-wrap { position: relative; width: 100%; height: 420px; }
+    #radar-chart { width: 100% !important; height: 100% !important; }
+    .radar-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; }
+    .radar-center-label { font-size: .55rem; font-weight: 700; color: #0f2942; margin-top: .25rem; line-height: 1.3; }
+    .radar-legend { display: flex; flex-wrap: wrap; gap: .5rem .875rem; justify-content: center; margin-top: .75rem; }
+    .legend-item { display: flex; align-items: center; gap: .375rem; font-size: .78rem; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    /* ── ICC panel ── */
+    .icc-title { display: flex; align-items: center; gap: .5rem; }
+    .icc-card { border-left: 3px solid; border-radius: 0 8px 8px 0; padding: .75rem; margin-bottom: .625rem; background: #f8fafc; }
+    .icc-card-header { display: flex; align-items: center; gap: .375rem; margin-bottom: .375rem; }
+    .icc-score { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .icc-ap-name { font-size: .68rem; color: #64748b; margin-top: .2rem; line-height: 1.3; }
+    .icc-evo { text-align: center; padding: .75rem; background: #f0fdf4; border-radius: 8px; margin-top: .25rem; }
+    .icc-evo-num { font-size: 1.375rem; font-weight: 800; }
+    .icc-evo-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .06em; color: #64748b; margin-top: .1rem; }
+
+    /* ── Evolução por dimensão ── */
+    .evo-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    .evo-table th { padding: .5rem .75rem; border-bottom: 2px solid #e2e8f0; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; text-align: center; white-space: nowrap; }
+    .evo-table th:first-child { text-align: left; }
+    .evo-table td { padding: .5rem .75rem; border-bottom: 1px solid #f1f5f9; }
+    .evo-table tbody tr:last-child td { border-bottom: none; }
+    .evo-dim { display: flex; align-items: center; gap: .5rem; font-size: .8rem; }
+    .evo-score { text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .evo-diff { text-align: center; font-weight: 700; white-space: nowrap; }
+
+    /* ── Bottom 2-col ── */
+    .dash-bottom { display: grid; grid-template-columns: 1fr 320px; gap: 1rem; margin-top: 1rem; }
+    @media (max-width: 860px) { .dash-bottom { grid-template-columns: 1fr; } }
+
+    /* ── Destaques ── */
+    .destaques-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    @media (max-width: 600px) { .destaques-grid { grid-template-columns: 1fr; } }
+    .destaque-section-title { display: flex; align-items: center; gap: .375rem; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #64748b; margin-bottom: .625rem; }
+    .destaque-item { display: flex; align-items: center; gap: .625rem; margin-bottom: .5rem; font-size: .8rem; }
+    .destaque-score { padding: .2rem .5rem; border-radius: 6px; font-weight: 700; font-size: .8rem; white-space: nowrap; }
+    .respostas-section { margin-top: .75rem; padding-top: .75rem; border-top: 1px solid #f1f5f9; }
+    .resposta-aberta { background: #f8fafc; border-left: 3px solid #e2e8f0; border-radius: 0 6px 6px 0; padding: .625rem .875rem; margin-bottom: .5rem; }
+    .resposta-texto { font-size: .8rem; color: #374151; line-height: 1.5; font-style: italic; }
+    .resposta-autor { font-size: .7rem; color: #94a3b8; margin-top: .25rem; }
+
+    /* ── Pergunta chave ── */
+    .p33-wrap { position: relative; height: 180px; margin-bottom: .75rem; }
+    .p33-highlight { text-align: center; margin-bottom: 1rem; }
+    .p33-pct { font-size: 2rem; font-weight: 800; color: #16a34a; }
+    .p33-pct-label { font-size: .75rem; color: #64748b; margin-top: .15rem; }
+    .pos-badge { display: inline-flex; align-items: center; gap: .5rem; padding: .5rem 1rem; border-radius: 999px; font-weight: 700; font-size: .875rem; width: 100%; justify-content: center; margin-top: .5rem; }
+    .pos-sub { font-size: .7rem; color: #64748b; text-align: center; margin-top: .375rem; text-transform: uppercase; letter-spacing: .04em; }
+
+    /* ── Print ── */
+    @media print {
+      .dash-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .cat-label, .destaque-score, .icc-evo { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .dash-main { grid-template-columns: 180px 1fr 180px; }
+      .dash-bottom { grid-template-columns: 1fr 280px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Gate -->
+<div id="gate" class="gate">
+  <div class="gate-card">
+    <div id="gate-loading">
+      <div class="spinner"></div>
+      <p style="color:#64748b;font-size:.875rem;">Carregando resultados...</p>
+    </div>
+    <div id="gate-error" style="display:none;">
+      <div class="gate-icon">🔒</div>
+      <h2 id="gate-msg" style="color:#374151;font-size:1rem;"></h2>
+    </div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard" style="display:none;">
+
+  <!-- Header -->
+  <header class="dash-header">
+    <div class="dash-header-inner">
+      <div class="dash-logo-area">
+        <div class="dash-logo-icon"></div>
+        <div>
+          <div class="dash-title">RADAR CSC 360°</div>
+          <div class="dash-subtitle">Diagnóstico de Excelência em Serviço e Comportamento</div>
+        </div>
+      </div>
+      <div id="header-badges" class="dash-periods"></div>
+      <div class="periodo-box">
+        <small>Período da Avaliação</small>
+        <strong id="header-periodo"></strong>
+      </div>
+    </div>
+  </header>
+
+  <div class="dash-wrap">
+
+    <!-- 3-col main -->
+    <div class="dash-main">
+
+      <!-- Como ler -->
+      <div class="card">
+        <div class="card-title">Como ler o radar</div>
+        <div id="como-ler-list"></div>
+        <div id="participants-line" class="participants-line"></div>
+      </div>
+
+      <!-- Radar -->
+      <div class="radar-section">
+        <div class="category-labels">
+          <div class="cat-label cat-service">Excelência de Serviço</div>
+          <div class="cat-label cat-behavioral">Excelência Comportamental</div>
+        </div>
+        <div class="card" style="width:100%;padding:1rem;">
+          <div class="radar-wrap">
+            <canvas id="radar-chart"></canvas>
+            <div class="radar-center">
+              <div id="radar-center-icon"></div>
+              <div class="radar-center-label">CLIENTE<br>INTERNO</div>
+            </div>
+          </div>
+          <div id="radar-legend" class="radar-legend"></div>
+        </div>
+      </div>
+
+      <!-- ICC -->
+      <div class="card">
+        <div class="card-title icc-title">
+          <span>Índice Geral (ICC)</span>
+        </div>
+        <div id="icc-content"></div>
+      </div>
+
+    </div>
+
+    <!-- Evolução por dimensão -->
+    <div class="card" style="margin-top:1rem;overflow-x:auto;">
+      <div class="card-title">Evolução por Dimensão</div>
+      <table class="evo-table">
+        <thead id="evo-thead"></thead>
+        <tbody id="evo-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Bottom 2-col -->
+    <div class="dash-bottom">
+
+      <!-- Destaques -->
+      <div class="card">
+        <div class="card-title">Destaques Qualitativos</div>
+        <div id="destaques-grid" class="destaques-grid"></div>
+        <div id="respostas-section"></div>
+      </div>
+
+      <!-- Pergunta chave + posicionamento -->
+      <div>
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="card-title">Pergunta Chave</div>
+          <p style="font-size:.72rem;color:#64748b;margin-bottom:.75rem;">O CSC hoje facilita ou dificulta a sua operação?</p>
+          <div class="p33-wrap"><canvas id="p33-chart"></canvas></div>
+          <div class="p33-highlight">
+            <div id="p33-pct" class="p33-pct"></div>
+            <div id="p33-label" class="p33-pct-label"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Posicionamento do CSC</div>
+          <div id="pos-badge-wrap">
+            <div id="pos-badge" class="pos-badge"></div>
+            <div id="pos-sub" class="pos-sub"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top:1.5rem;text-align:center;font-size:.72rem;color:#94a3b8;" id="footer-text"></div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="../config.js"></script>
+<script>
+const EIXOS_KEYS = [
+  'Clareza e Comunicação','Tempo e Fluxo','Postura de Atendimento',
+  'Qualidade e Confiabilidade','Proatividade','Gentileza no Contato',
+  'Equilíbrio Emocional','Foco na Solução',
+];
+const EIXOS_LABELS = [
+  ['Clareza e','Comunicação'],['Tempo e','Fluxo'],
+  ['Postura de','Atendimento'],['Qualidade e','Confiabilidade'],
+  'Proatividade',['Gentileza','no Contato'],
+  ['Equilíbrio','Emocional'],['Foco na','Solução'],
+];
+const EIXOS_ICONS = [
+  'icon-clareza','icon-tempo','icon-postura','icon-qualidade',
+  'icon-proatividade','icon-gentileza','icon-equilibrio','icon-foco',
+];
+const COMO_LER = [
+  { n:'5', label:'Alavanca o negócio',    desc:'Vai além do esperado, antecipa e gera valor claro', bg:'#1d4ed8', color:'#fff' },
+  { n:'4', label:'Acima do esperado',     desc:'Entrega com qualidade, facilita o fluxo',           bg:'#2563eb', color:'#fff' },
+  { n:'3', label:'Dentro do esperado',   desc:'Cumpre o básico, sem gerar impacto relevante',      bg:'#60a5fa', color:'#fff' },
+  { n:'2', label:'Abaixo do esperado',   desc:'Não atende de forma consistente',                   bg:'#fbbf24', color:'#fff' },
+  { n:'1', label:'Prejudica o negócio',  desc:'Impacta negativamente, gera retrabalho ou ruído',   bg:'#dc2626', color:'#fff' },
+];
+const POS_COLORS = {
+  'Operacional':{ bg:'#f3f4f6', color:'#4b5563' },
+  'Apoio':      { bg:'#dbeafe', color:'#1d4ed8' },
+  'Parceiro':   { bg:'#d1fae5', color:'#065f46' },
+  'Estratégico':{ bg:'#ede9fe', color:'#5b21b6' },
+};
+
+function apStyle(idx, total) {
+  if (idx === 0)         return { color:'#94a3b8', bg:'rgba(148,163,184,.18)', icon:'icon-antes',   label:'ANTES' };
+  if (idx === total - 1) return { color:'#16a34a', bg:'rgba(22,163,74,.18)',   icon:'icon-final',   label:'FINAL' };
+  return                        { color:'#3b82f6', bg:'rgba(59,130,246,.18)',  icon:'icon-durante', label:'DURANTE' };
+}
+
+function ico(name, size, color) {
+  return `<span class="ico" style="width:${size}px;height:${size}px;background-color:${color};-webkit-mask-image:url('../assets/icons/${name}.svg');mask-image:url('../assets/icons/${name}.svg');"></span>`;
+}
+function esc(s) {
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function apiCall(action, payload) {
+  const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action, ...(payload||{}) }),
+    redirect:'follow',
+  });
+  if (!res.ok) throw new Error('Erro de rede');
+  return JSON.parse(await res.text());
+}
+
+// Score labels plugin
+const scoreLabelPlugin = {
+  id:'scoreLabels',
+  afterDraw(chart) {
+    const { ctx, data, scales:{r} } = chart;
+    if (!r) return;
+    const total = data.datasets.length;
+    data.labels.forEach((_,ai) => {
+      const outer = r.getPointPosition(ai, r.getDistanceFromCenterForValue(5));
+      const dx = outer.x - r.xCenter, dy = outer.y - r.yCenter;
+      const len = Math.sqrt(dx*dx+dy*dy)||1;
+      data.datasets.forEach((ds,di) => {
+        const val = ds.data[ai];
+        if (val==null) return;
+        const OFF = 18;
+        const tx = outer.x + (dx/len)*OFF;
+        const ty = outer.y + (dy/len)*OFF + (di-(total-1)/2)*13;
+        ctx.save();
+        ctx.font = '600 9px system-ui,sans-serif';
+        ctx.fillStyle = ds.borderColor;
+        ctx.textAlign = Math.abs(dx/len)>.35 ? (dx>0?'left':'right') : 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(val.toFixed(1), tx, ty);
+        ctx.restore();
+      });
+    });
+  }
+};
+
+async function init() {
+  const token = new URLSearchParams(window.location.search).get('token');
+  if (!token) { gateError('Link inválido.'); return; }
+  try {
+    const tv = await apiCall('validarToken', { token });
+    if (!tv.success) { gateError(tv.error || 'Link inválido.'); return; }
+    const d = await apiCall('getDashboardData', { empresa_id: tv.empresa_id });
+    if (!d.success) { gateError(d.error || 'Erro ao carregar.'); return; }
+    if (!d.aplicacoes?.length) { gateError('Nenhuma resposta disponível ainda.'); return; }
+    render(d);
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('dashboard').style.display = '';
+  } catch(e) { gateError('Erro: ' + e.message); }
+}
+
+function gateError(msg) {
+  document.getElementById('gate-loading').style.display = 'none';
+  document.getElementById('gate-msg').textContent = msg;
+  document.getElementById('gate-error').style.display = '';
+}
+
+function render(data) {
+  const { empresa, aplicacoes, evolucao_total } = data;
+  const total = aplicacoes.length;
+  renderHeader(empresa, aplicacoes, total);
+  renderComoLer(aplicacoes, total);
+  renderRadar(aplicacoes, total);
+  renderICC(aplicacoes, total, evolucao_total);
+  renderEvolucao(aplicacoes, total);
+  renderDestaques(aplicacoes, total);
+  renderPergunta(aplicacoes, total);
+  const tots = aplicacoes.reduce((s,a)=>s+a.total_respondentes,0);
+  document.getElementById('footer-text').textContent =
+    'Avaliação realizada com ' + tots + ' respondente' + (tots!==1?'s':'') + ' · RADAR CSC 360°';
+}
+
+function renderHeader(empresa, aplicacoes, total) {
+  document.getElementById('header-periodo').textContent = aplicacoes[total-1].aplicacao_nome;
+  document.getElementById('header-badges').innerHTML = aplicacoes.map((ap,i) => {
+    const s = apStyle(i, total);
+    return `<div class="period-item">
+      ${ico(s.icon, 28, s.color)}
+      <div>
+        <div class="period-label" style="color:${s.color};">${s.label}</div>
+        <div class="period-name">${esc(ap.aplicacao_nome)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderComoLer(aplicacoes, total) {
+  document.getElementById('como-ler-list').innerHTML = COMO_LER.map(c => `
+    <div class="como-ler-item">
+      <div class="como-ler-num" style="background:${c.bg};color:${c.color};">${c.n}</div>
+      <div><strong>${c.label}</strong><br><span style="color:#64748b;">${c.desc}</span></div>
+    </div>`).join('');
+  const tots = aplicacoes.reduce((s,a)=>s+a.total_respondentes,0);
+  document.getElementById('participants-line').innerHTML =
+    ico('icon-cliente', 18, '#64748b') +
+    `<span>${tots} respondente${tots!==1?'s':''}</span>`;
+}
+
+function renderRadar(aplicacoes, total) {
+  document.getElementById('radar-center-icon').innerHTML = ico('icon-cliente', 32, '#0f2942');
+  const datasets = aplicacoes.map((ap,i) => {
+    const s = apStyle(i, total);
+    return {
+      label: ap.aplicacao_nome,
+      data: EIXOS_KEYS.map(k => ap.eixos[k]??null),
+      borderColor: s.color, backgroundColor: s.bg,
+      borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: s.color,
+    };
+  });
+  document.getElementById('radar-legend').innerHTML = aplicacoes.map((ap,i) => {
+    const s = apStyle(i, total);
+    return `<span class="legend-item">
+      <span class="legend-dot" style="background:${s.color};"></span>
+      ${esc(ap.aplicacao_nome)}
+    </span>`;
+  }).join('');
+  new Chart(document.getElementById('radar-chart'), {
+    type:'radar', data:{ labels:EIXOS_LABELS, datasets },
+    plugins:[scoreLabelPlugin],
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{ r:{
+        min:0, max:5,
+        ticks:{ stepSize:1, backdropColor:'transparent', font:{size:9}, color:'#94a3b8' },
+        grid:{ color:'rgba(0,0,0,.06)' }, angleLines:{ color:'rgba(0,0,0,.06)' },
+        pointLabels:{ font:{size:11,weight:'600'}, color:'#1e293b', padding:14 },
+      }},
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label: c=>' '+c.dataset.label+': '+(c.raw!=null?Number(c.raw).toFixed(2):'—') }}
+      },
+      layout:{ padding:{ top:8, right:32, bottom:8, left:32 } },
+    },
+  });
+}
+
+function renderICC(aplicacoes, total, evolucaoTotal) {
+  let html = aplicacoes.map((ap,i) => {
+    const s = apStyle(i, total);
+    const icc = ap.icc!=null ? ap.icc.toFixed(1) : '—';
+    return `<div class="icc-card" style="border-left-color:${s.color};">
+      <div class="icc-card-header">${ico(s.icon,18,s.color)}
+        <span style="color:${s.color};font-size:.68rem;font-weight:700;text-transform:uppercase;">${s.label}</span>
+      </div>
+      <div class="icc-score" style="color:${s.color};">${icc}</div>
+      <div class="icc-ap-name">${esc(ap.aplicacao_nome)}</div>
+    </div>`;
+  }).join('');
+  if (evolucaoTotal != null) {
+    const c = evolucaoTotal >= 0 ? '#16a34a' : '#dc2626';
+    const arrow = evolucaoTotal >= 0 ? '↑' : '↓';
+    const sign  = evolucaoTotal >  0 ? '+' : '';
+    html += `<div class="icc-evo" style="background:${evolucaoTotal>=0?'#f0fdf4':'#fef2f2'};">
+      <div class="icc-evo-num" style="color:${c};">${arrow} ${sign}${evolucaoTotal.toFixed(1)}</div>
+      <div class="icc-evo-label">Evolução Total</div>
+    </div>`;
+  }
+  document.getElementById('icc-content').innerHTML = html;
+}
+
+function renderEvolucao(aplicacoes, total) {
+  const multi = total > 1;
+  const apHdrs = aplicacoes.map((ap,i) => {
+    const s = apStyle(i,total);
+    return `<th style="color:${s.color};">${s.label}</th>`;
+  }).join('');
+  document.getElementById('evo-thead').innerHTML =
+    `<tr><th style="text-align:left;">Dimensão</th>${apHdrs}${multi?'<th>Evolução</th>':''}</tr>`;
+
+  document.getElementById('evo-tbody').innerHTML = EIXOS_KEYS.map((key,idx) => {
+    const scores = aplicacoes.map(ap => ap.eixos[key]);
+    const cells  = scores.map((s,i) => {
+      const st = apStyle(i,total);
+      return `<td class="evo-score" style="color:${st.color};">${s!=null?s.toFixed(1):'—'}</td>`;
+    }).join('');
+    let evo = '';
+    if (multi) {
+      const f = scores[0], l = scores[total-1];
+      if (f!=null && l!=null) {
+        const d = parseFloat((l-f).toFixed(1));
+        const c = d>0?'#16a34a':d<0?'#dc2626':'#6b7280';
+        evo = `<td class="evo-diff" style="color:${c};">${d>0?'↑':d<0?'↓':'→'} ${d>0?'+':''}${d}</td>`;
+      } else evo = '<td class="evo-diff">—</td>';
+    }
+    return `<tr>
+      <td class="evo-dim">${ico(EIXOS_ICONS[idx],16,'#64748b')}<span>${esc(key)}</span></td>
+      ${cells}${evo}
+    </tr>`;
+  }).join('');
+}
+
+function renderDestaques(aplicacoes, total) {
+  const ultima = aplicacoes[total-1];
+  const s = apStyle(total-1, total);
+  const top3 = ultima.destaques_auto.top3;
+  const bot3 = ultima.destaques_auto.bot3;
+
+  document.getElementById('destaques-grid').innerHTML = `
+    <div>
+      <div class="destaque-section-title">${ico('icon-pontos-fortes',15,'#16a34a')}<span>Pontos Fortes</span></div>
+      ${top3.map(([nome,score]) => `
+        <div class="destaque-item">
+          <span class="destaque-score" style="background:#d1fae5;color:#065f46;">${score.toFixed(1)}</span>
+          <span>${esc(nome)}</span>
+        </div>`).join('')}
+    </div>
+    <div>
+      <div class="destaque-section-title">${ico('icon-oportunidades',15,'#d97706')}<span>Oportunidades</span></div>
+      ${bot3.map(([nome,score]) => `
+        <div class="destaque-item">
+          <span class="destaque-score" style="background:#fef3c7;color:#b45309;">${score.toFixed(1)}</span>
+          <span>${esc(nome)}</span>
+        </div>`).join('')}
+    </div>`;
+
+  const cfg = ultima.destaques_config;
+  const respostas = ultima.respostas_abertas || [];
+  const filtradas = cfg.mostrar_respostas
+    ? (cfg.selecionadas?.length ? respostas.filter(r => cfg.selecionadas.includes(r.id)) : respostas)
+    : [];
+
+  if (filtradas.length > 0) {
+    const items = filtradas.flatMap(r =>
+      [r.p_aberta_1, r.p_aberta_2, r.p38].filter(Boolean).map(t => `
+        <div class="resposta-aberta">
+          <div class="resposta-texto">"${esc(t)}"</div>
+          <div class="resposta-autor">— ${esc(r.participante_nome||'Participante')}</div>
+        </div>`)
+    ).join('');
+    document.getElementById('respostas-section').innerHTML = `
+      <div class="respostas-section">
+        <div class="destaque-section-title" style="margin-bottom:.5rem;">
+          ${ico('icon-cliente',14,'#64748b')}<span>Vozes dos Participantes</span>
+        </div>
+        ${items}
+      </div>`;
+  }
+}
+
+function renderPergunta(aplicacoes, total) {
+  const ultima = aplicacoes[total-1];
+  const { p33dist, posicionamento } = ultima;
+
+  new Chart(document.getElementById('p33-chart'), {
+    type:'doughnut',
+    data:{
+      labels:['Facilita','Neutro','Dificulta'],
+      datasets:[{ data:[p33dist.facilita,p33dist.neutro,p33dist.dificulta],
+        backgroundColor:['#16a34a','#9ca3af','#dc2626'], borderWidth:0 }],
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'62%',
+      plugins:{ legend:{ position:'bottom', labels:{font:{size:10},padding:6} },
+        tooltip:{ callbacks:{ label: c=>` ${c.label}: ${c.raw}%` }} },
+    },
+  });
+
+  const mainPct = p33dist.facilita >= p33dist.dificulta ? p33dist.facilita : p33dist.dificulta;
+  const mainLbl = p33dist.facilita >= p33dist.dificulta ? 'disseram que FACILITA' : 'disseram que DIFICULTA';
+  const pctColor = p33dist.facilita >= p33dist.dificulta ? '#16a34a' : '#dc2626';
+  document.getElementById('p33-pct').style.color = pctColor;
+  document.getElementById('p33-pct').textContent = mainPct + '%';
+  document.getElementById('p33-label').textContent = mainLbl;
+
+  const badge = document.getElementById('pos-badge');
+  if (posicionamento && POS_COLORS[posicionamento]) {
+    const { bg, color } = POS_COLORS[posicionamento];
+    badge.style.background = bg;
+    badge.style.color = color;
+    badge.innerHTML = ico('icon-posicionamento', 18, color) + `<span>${esc(posicionamento)}</span>`;
+    document.getElementById('pos-sub').textContent = 'Posicionamento Atual do CSC';
+  } else {
+    badge.textContent = '—';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

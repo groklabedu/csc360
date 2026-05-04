@@ -66,6 +66,15 @@
       <div id="areas-conteudo"></div>
     </div>
 
+    <!-- Card: Curadoria de respostas abertas -->
+    <div id="card-curadoria" class="card hidden" style="margin-bottom:1.25rem;">
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:.375rem;">Curadoria de Respostas</h3>
+      <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1.25rem;">
+        Selecione quais respostas aparecerão no link público. Ative a exibição por aplicação e marque as desejadas.
+      </p>
+      <div id="curadoria-conteudo"></div>
+    </div>
+
   </div>
 
 </main>
@@ -222,6 +231,8 @@ function renderConteudo(data, empresa_id) {
     document.getElementById('card-areas').classList.remove('hidden');
   }
 
+  renderCuradoria(aplicacoes);
+
   document.getElementById('conteudo').classList.remove('hidden');
 }
 
@@ -365,6 +376,90 @@ async function gerarLink(empresa_id) {
   } catch (err) {
     erroEl.textContent = err.message;
     erroEl.classList.remove('hidden');
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+// ── Curadoria de respostas ──
+
+function renderCuradoria(aplicacoes) {
+  const aps = aplicacoes.filter(ap => ap.respostas_abertas && ap.respostas_abertas.length > 0);
+  if (aps.length === 0) return;
+
+  document.getElementById('card-curadoria').classList.remove('hidden');
+
+  document.getElementById('curadoria-conteudo').innerHTML = aps.map(ap => {
+    const cfg        = ap.destaques_config || {};
+    const mostrar    = !!cfg.mostrar_respostas;
+    const selecionadas = Array.isArray(cfg.selecionadas) ? cfg.selecionadas : [];
+
+    const respostasHtml = ap.respostas_abertas.map(r => {
+      const checked = selecionadas.includes(String(r.id)) ? 'checked' : '';
+      const linhas = [
+        r.p38       ? '<span><strong>Como meu trabalho impacta:</strong> ' + escHtml(r.p38)       + '</span>' : '',
+        r.p_aberta_1 ? '<span><strong>Destaque positivo:</strong> '        + escHtml(r.p_aberta_1) + '</span>' : '',
+        r.p_aberta_2 ? '<span><strong>Sugestão de melhoria:</strong> '     + escHtml(r.p_aberta_2) + '</span>' : '',
+      ].filter(Boolean).join('');
+      if (!linhas) return '';
+      return `
+        <label class="curadoria-item${mostrar ? '' : ' curadoria-disabled'}">
+          <input type="checkbox" value="${escHtml(String(r.id))}" ${checked}${mostrar ? '' : ' disabled'}>
+          <div class="curadoria-texto">
+            <span class="curadoria-nome">${escHtml(r.participante_nome || 'Participante')}</span>
+            ${linhas}
+          </div>
+        </label>`;
+    }).filter(Boolean).join('');
+
+    return `
+      <div class="curadoria-bloco" data-ap-id="${escHtml(ap.aplicacao_id)}">
+        <div class="curadoria-header">
+          <span class="curadoria-ap-nome">${escHtml(ap.aplicacao_nome)}</span>
+          <label class="curadoria-toggle">
+            <input type="checkbox" class="toggle-mostrar"${mostrar ? ' checked' : ''}>
+            <span>Exibir no link público</span>
+          </label>
+        </div>
+        <div class="curadoria-lista">${respostasHtml || '<p style="font-size:.85rem;color:var(--text-muted);padding:.5rem 0;">Nenhuma resposta aberta nesta aplicação.</p>'}</div>
+        <div style="margin-top:.875rem;">
+          <button class="btn btn-primary btn-salvar-curadoria" style="font-size:.85rem;padding:.4rem .875rem;">
+            💾 Salvar seleção
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+
+  document.querySelectorAll('.toggle-mostrar').forEach(toggle => {
+    toggle.addEventListener('change', e => {
+      const bloco = e.target.closest('.curadoria-bloco');
+      const enabled = e.target.checked;
+      bloco.querySelectorAll('.curadoria-item').forEach(item => {
+        item.classList.toggle('curadoria-disabled', !enabled);
+        item.querySelector('input[type=checkbox]').disabled = !enabled;
+      });
+    });
+  });
+
+  document.querySelectorAll('.btn-salvar-curadoria').forEach(btn => {
+    btn.addEventListener('click', e => salvarCuradoria(e.target.closest('.curadoria-bloco')));
+  });
+}
+
+async function salvarCuradoria(bloco) {
+  const aplicacao_id   = bloco.dataset.apId;
+  const mostrar        = bloco.querySelector('.toggle-mostrar').checked;
+  const selecionadas   = [...bloco.querySelectorAll('.curadoria-lista input[type=checkbox]:checked')]
+    .map(cb => cb.value);
+
+  const btn = bloco.querySelector('.btn-salvar-curadoria');
+  setLoading(btn, true);
+  try {
+    const r = await apiCall('salvarDestaquesConfig', { aplicacao_id, mostrar_respostas: mostrar, selecionadas });
+    if (!r.success) throw new Error(r.error || 'Erro ao salvar');
+    showToast('Seleção salva com sucesso!');
+  } catch (err) {
+    showToast(err.message, 'error');
   } finally {
     setLoading(btn, false);
   }

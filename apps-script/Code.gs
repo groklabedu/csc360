@@ -33,9 +33,10 @@ function doPost(e) {
       case 'listarAplicacoes':     result = listarAplicacoes(data); break;
       case 'listarParticipantes':  result = listarParticipantes(data); break;
       case 'exportarParticipantesCSV': result = exportarParticipantesCSV(data); break;
-      case 'getDashboardData':     result = getDashboardData(data); break;
-      case 'criarLinkPublico':     result = criarLinkPublico(data); break;
-      case 'validarToken':         result = validarToken(data); break;
+      case 'getDashboardData':        result = getDashboardData(data); break;
+      case 'salvarDestaquesConfig':   result = salvarDestaquesConfig(data); break;
+      case 'criarLinkPublico':        result = criarLinkPublico(data); break;
+      case 'validarToken':            result = validarToken(data); break;
       default:
         result = { success: false, error: 'Ação desconhecida: ' + data.action };
     }
@@ -440,26 +441,36 @@ function getDashboardData(data) {
 
   const aplicacoes = sheetToObjects(getSheet('aplicacoes'))
     .filter(a => a.empresa_id === empresa_id)
-    .sort((a, b) => a.ordem - b.ordem);
+    .sort((a, b) => Number(a.ordem) - Number(b.ordem));
 
   const respostas = sheetToObjects(getSheet('respostas'))
     .filter(r => r.empresa_id === empresa_id);
+
+  const participantes = sheetToObjects(getSheet('participantes'))
+    .filter(p => p.empresa_id === empresa_id);
 
   const resultado = aplicacoes.map(ap => {
     const resp = respostas.filter(r => r.aplicacao_id === ap.id);
     if (resp.length === 0) return null;
 
+    // 8 eixos
     const eixos = {};
     for (const [nome, perguntas] of Object.entries(EIXOS)) {
       const vals = resp.flatMap(r => perguntas.map(p => Number(r[p])).filter(v => v > 0));
-      eixos[nome] = vals.length > 0 ? parseFloat((vals.reduce((a,b)=>a+b,0) / vals.length).toFixed(2)) : null;
+      eixos[nome] = vals.length > 0 ? parseFloat((vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2)) : null;
     }
 
-    // Moda de p36
+    // ICC — média dos 8 eixos
+    const eixoVals = Object.values(eixos).filter(v => v != null);
+    const icc = eixoVals.length > 0
+      ? parseFloat((eixoVals.reduce((a,b)=>a+b,0)/eixoVals.length).toFixed(2))
+      : null;
+
+    // Posicionamento (moda p36)
     const p36vals = resp.map(r => r['p36']).filter(Boolean);
     const posicionamento = moda(p36vals);
 
-    // Médias de p37 por área
+    // Avaliação por área (p37)
     const areas = parsearJSON(empresa.areas, []);
     const avaliacaoAreas = {};
     areas.forEach(area => {
@@ -472,22 +483,99 @@ function getDashboardData(data) {
         : null;
     });
 
+    // p33 — distribuição Facilita/Neutro/Dificulta
+    const p33vals = resp.map(r => Number(r['p33'])).filter(v => v > 0);
+    const p33c = { facilita: 0, neutro: 0, dificulta: 0 };
+    p33vals.forEach(v => {
+      if (v >= 4) p33c.facilita++;
+      else if (v === 3) p33c.neutro++;
+      else p33c.dificulta++;
+    });
+    const p33t = p33vals.length || 1;
+    const p33dist = {
+      facilita:  Math.round(p33c.facilita  / p33t * 100),
+      neutro:    Math.round(p33c.neutro    / p33t * 100),
+      dificulta: Math.round(p33c.dificulta / p33t * 100),
+    };
+
+    // Respostas abertas (p38, p_aberta_1, p_aberta_2)
+    const partsAp = participantes.filter(p => p.aplicacao_id === ap.id);
+    const respostasAbertas = resp.map(r => {
+      const part = partsAp.find(p => p.id === r.participante_id) || {};
+      return {
+        id:               r.id,
+        participante_nome:String(part.nome || ''),
+        p38:              String(r.p38        || '').trim(),
+        p_aberta_1:       String(r.p_aberta_1 || '').trim(),
+        p_aberta_2:       String(r.p_aberta_2 || '').trim(),
+      };
+    }).filter(r => r.p38 || r.p_aberta_1 || r.p_aberta_2);
+
+    // Curadoria config
+    const destaquesConfig = parsearJSON(
+      ap.destaques_config,
+      { mostrar_respostas: false, selecionadas: [] }
+    );
+
+    // Destaques automáticos
+    const ranked = Object.entries(eixos).filter(([,v]) => v != null).sort(([,a],[,b]) => b - a);
+    const destaquesAuto = {
+      top3: ranked.slice(0, 3),
+      bot3: ranked.slice(-3).reverse(),
+    };
+
     return {
-      aplicacao_id:   ap.id,
-      aplicacao_nome: ap.nome,
-      aplicacao_ordem:ap.ordem,
+      aplicacao_id:       ap.id,
+      aplicacao_nome:     ap.nome,
+      aplicacao_ordem:    Number(ap.ordem),
       total_respondentes: resp.length,
       eixos,
+      icc,
       posicionamento,
-      avaliacao_areas: avaliacaoAreas,
+      avaliacao_areas:    avaliacaoAreas,
+      p33dist,
+      respostas_abertas:  respostasAbertas,
+      destaques_config:   destaquesConfig,
+      destaques_auto:     destaquesAuto,
     };
   }).filter(Boolean);
 
+  const iccs = resultado.map(r => r.icc).filter(v => v != null);
+  const evolucaoTotal = iccs.length >= 2
+    ? parseFloat((iccs[iccs.length-1] - iccs[0]).toFixed(2))
+    : null;
+
   return {
-    success: true,
-    empresa: { nome: empresa.nome, areas: parsearJSON(empresa.areas, []) },
-    aplicacoes: resultado,
+    success:        true,
+    empresa:        { nome: empresa.nome, areas: parsearJSON(empresa.areas, []) },
+    aplicacoes:     resultado,
+    evolucao_total: evolucaoTotal,
   };
+}
+
+function salvarDestaquesConfig(data) {
+  const { aplicacao_id, mostrar_respostas, selecionadas } = data;
+  if (!aplicacao_id) return { success: false, error: 'aplicacao_id obrigatório.' };
+
+  const sheet = getSheet('aplicacoes');
+  const rows  = sheet.getDataRange().getValues();
+  const { headers, map } = getHeaderMap(sheet);
+
+  let colIdx = map['destaques_config'];
+  if (colIdx === undefined) {
+    colIdx = headers.length;
+    sheet.getRange(1, colIdx + 1).setValue('destaques_config');
+  }
+
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][map['id']] !== aplicacao_id) continue;
+    sheet.getRange(i + 1, colIdx + 1).setValue(
+      JSON.stringify({ mostrar_respostas: !!mostrar_respostas, selecionadas: selecionadas || [] })
+    );
+    return { success: true };
+  }
+
+  return { success: false, error: 'Aplicação não encontrada.' };
 }
 
 // ─────────────────────────────────────────────
