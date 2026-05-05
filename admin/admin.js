@@ -153,15 +153,33 @@ function downloadCSV(rows, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// ── Parse CSV text (Nome,Email por linha) ──
+// ── Parse CSV text — detecta separador (vírgula ou ponto-e-vírgula) e cabeçalho ──
 
 function parseCSVText(text) {
-  return text.split('\n')
-    .map(l => l.trim())
-    .filter(l => l && !l.startsWith('#'))
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+  if (lines.length === 0) return [];
+
+  // Detecta separador pela primeira linha
+  const sep = lines[0].split(';').length > lines[0].split(',').length ? ';' : ',';
+
+  // Detecta e mapeia cabeçalho se existir
+  const firstCols = lines[0].split(sep).map(c => c.trim().replace(/^["']|["']$/g, '').toLowerCase());
+  const HEADER_KEYWORDS = ['nome', 'name', 'email', 'área', 'area', 'departamento', 'setor', 'dept'];
+  const hasHeader = firstCols.some(c => HEADER_KEYWORDS.includes(c));
+
+  let nomeIdx = 0, emailIdx = 1, areaIdx = 2;
+  if (hasHeader) {
+    firstCols.forEach((c, i) => {
+      if (['nome', 'name'].includes(c))                              nomeIdx  = i;
+      else if (['email', 'e-mail'].includes(c))                     emailIdx = i;
+      else if (['área','area','departamento','setor','dept'].includes(c)) areaIdx = i;
+    });
+  }
+
+  return (hasHeader ? lines.slice(1) : lines)
     .map(l => {
-      const cols = l.split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
-      return { nome: cols[0] || '', email: cols[1] || '', area: cols[2] || '' };
+      const cols = l.split(sep).map(c => c.trim().replace(/^["']|["']$/g, ''));
+      return { nome: cols[nomeIdx] || '', email: cols[emailIdx] || '', area: cols[areaIdx] || '' };
     })
     .filter(p => p.nome.length > 0);
 }
