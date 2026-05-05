@@ -392,9 +392,9 @@ textarea.form-input { resize: vertical; min-height: 100px; }
   background: var(--card);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
-  overflow: hidden;
+  overflow-x: auto;
 }
-table { width: 100%; border-collapse: collapse; }
+table { width: 100%; border-collapse: collapse; min-width: 600px; }
 th {
   background: var(--bg);
   font-size: .8rem;
@@ -405,11 +405,13 @@ th {
   padding: .75rem 1rem;
   text-align: left;
   border-bottom: 1px solid var(--border);
+  white-space: nowrap;
 }
 td {
   padding: .875rem 1rem;
   border-bottom: 1px solid var(--border);
   font-size: .9rem;
+  white-space: nowrap;
 }
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: var(--bg); }
