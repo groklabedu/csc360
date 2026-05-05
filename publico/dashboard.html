@@ -567,12 +567,22 @@ function renderPergunta(aplicacoes, total) {
   const ultima = aplicacoes[total-1];
   const { p33dist, posicionamento } = ultima;
 
+  // 5 categorias completas
+  const p33Labels = ['Dificulta muito', 'Dificulta', 'Neutro', 'Facilita', 'Facilita muito'];
+  const p33Data   = [
+    p33dist.dificulta_muito || 0,
+    p33dist.dificulta       || 0,
+    p33dist.neutro          || 0,
+    p33dist.facilita        || 0,
+    p33dist.facilita_muito  || 0,
+  ];
+  const p33Colors = ['#dc2626', '#f87171', '#9ca3af', '#4ade80', '#16a34a'];
+
   new Chart(document.getElementById('p33-chart'), {
     type:'doughnut',
     data:{
-      labels:['Facilita','Neutro','Dificulta'],
-      datasets:[{ data:[p33dist.facilita,p33dist.neutro,p33dist.dificulta],
-        backgroundColor:['#16a34a','#9ca3af','#dc2626'], borderWidth:0 }],
+      labels: p33Labels,
+      datasets:[{ data: p33Data, backgroundColor: p33Colors, borderWidth:0 }],
     },
     options:{
       responsive:true, maintainAspectRatio:false, cutout:'62%',
@@ -581,9 +591,13 @@ function renderPergunta(aplicacoes, total) {
     },
   });
 
-  const mainPct = p33dist.facilita >= p33dist.dificulta ? p33dist.facilita : p33dist.dificulta;
-  const mainLbl = p33dist.facilita >= p33dist.dificulta ? 'disseram que FACILITA' : 'disseram que DIFICULTA';
-  const pctColor = p33dist.facilita >= p33dist.dificulta ? '#16a34a' : '#dc2626';
+  // Destaque: agrega facilita+facilita_muito vs dificulta+dificulta_muito
+  // Em caso de empate, facilita prevalece (critério otimista)
+  const totalFacilita  = p33Data[3] + p33Data[4];
+  const totalDificulta = p33Data[0] + p33Data[1];
+  const mainPct   = totalFacilita >= totalDificulta ? totalFacilita : totalDificulta;
+  const mainLbl   = totalFacilita >= totalDificulta ? 'disseram que FACILITA' : 'disseram que DIFICULTA';
+  const pctColor  = totalFacilita >= totalDificulta ? '#16a34a' : '#dc2626';
   document.getElementById('p33-pct').style.color = pctColor;
   document.getElementById('p33-pct').textContent = mainPct + '%';
   document.getElementById('p33-label').textContent = mainLbl;

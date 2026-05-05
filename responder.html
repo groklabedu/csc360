@@ -108,10 +108,10 @@ const BLOCO1 = [
   { id: 'p9',  texto: 'Disponibilidade para ajudar',                                 grupo: 'Postura de Atendimento' },
   { id: 'p10', texto: 'Senso de responsabilidade pelas demandas',                    grupo: 'Postura de Atendimento' },
   { id: 'p11', texto: 'Facilidade de interação',                                     grupo: 'Postura de Atendimento' },
-  { id: 'p12', texto: 'Consistência no atendimento (não depende da pessoa)',         grupo: 'Postura de Atendimento' },
+  { id: 'p12', texto: 'Consistência no atendimento (oferece atenção do início ao fim)',         grupo: 'Postura de Atendimento' },
   { id: 'p13', texto: 'Qualidade técnica',                                           grupo: 'Qualidade e Confiabilidade' },
   { id: 'p14', texto: 'Precisão das informações',                                    grupo: 'Qualidade e Confiabilidade' },
-  { id: 'p15', texto: 'Baixo retrabalho',                                            grupo: 'Qualidade e Confiabilidade' },
+  { id: 'p15', texto: 'Há retrabalho',                                               grupo: 'Qualidade e Confiabilidade' },
   { id: 'p16', texto: 'Confiabilidade das entregas',                                 grupo: 'Qualidade e Confiabilidade' },
 ];
 
@@ -124,8 +124,8 @@ const BLOCO2 = [
   { id: 'p22', texto: 'Cuidado na comunicação',                                      grupo: 'Gentileza no Contato' },
   { id: 'p23', texto: 'Relação profissional e leve',                                 grupo: 'Gentileza no Contato' },
   { id: 'p24', texto: 'Postura adequada mesmo sob pressão',                          grupo: 'Gentileza no Contato' },
-  { id: 'p25', texto: 'Estabilidade sob pressão',                                    grupo: 'Equilíbrio Emocional' },
-  { id: 'p26', texto: 'Reação diante de problemas',                                  grupo: 'Equilíbrio Emocional' },
+  { id: 'p25', texto: 'Mantém a calma mesmo em situações de conflito e tensão',      grupo: 'Equilíbrio Emocional' },
+  { id: 'p26', texto: 'Reage na defensiva diante de problemas',                                  grupo: 'Equilíbrio Emocional' },
   { id: 'p27', texto: 'Maturidade nas interações',                                   grupo: 'Equilíbrio Emocional' },
   { id: 'p28', texto: 'Controle emocional (sem impulsividade)',                      grupo: 'Equilíbrio Emocional' },
   { id: 'p29', texto: 'Busca resolver, não apenas responder',                        grupo: 'Foco na Solução' },
@@ -300,8 +300,8 @@ function iniciarQuestionario(draft) {
   }
 
   const areas = state.empresa.areas || [];
-  // Total obrigatórios: p1-p32 (32) + p33 + p34 + p35 + p36 + areas.length (p37) = 36 + areas.length
-  state.totalRequired = 36 + areas.length;
+  // Total obrigatórios: p1-p32 (32) + p33 + p34 + p35 + p36 + areas.length (p37) + p38 + p_aberta_1 + p_aberta_2 = 39 + areas.length
+  state.totalRequired = 39 + areas.length;
 
   buildForm(areas);
   showStep('step-questionario');
@@ -337,7 +337,8 @@ function buildForm(areas) {
     'p_aberta_1',
     'Pergunta aberta',
     'O que mais facilita — e o que mais dificulta sua experiência com o CSC?',
-    'Compartilhe livremente (opcional)'
+    'Compartilhe sua experiência...',
+    true
   ));
 
   // ── Bloco 2 ──
@@ -349,7 +350,8 @@ function buildForm(areas) {
     'p_aberta_2',
     'Pergunta aberta',
     'Quais comportamentos já são bons (DEVEM MANTER)? E quais comportamentos faltam no CSC (DEVEM ADQUIRIR)?',
-    'Compartilhe livremente (opcional)'
+    'Compartilhe sua percepção...',
+    true
   ));
 
   // ── Bloco 3 ──
@@ -378,7 +380,7 @@ function buildForm(areas) {
       <div class="question-meta">
         <div class="question-num">37</div>
         <div style="flex:1;">
-          <p class="question-text">Avalie cada área do CSC na sua prestação de serviços:</p>
+          <p class="question-text">Avalie, de forma geral, a prestação de serviços de cada área do CSC:</p>
           <div id="p37-areas"></div>
         </div>
       </div>
@@ -397,8 +399,8 @@ function buildForm(areas) {
     bloco3.appendChild(p37Card);
   }
 
-  // p38 (opcional)
-  bloco3.appendChild(makeTextQuestion('p38', 38, 'Comentário / Sugestão final', 'Escreva aqui (opcional)...', false));
+  // p38
+  bloco3.appendChild(makeTextQuestion('p38', 38, 'Comentário / Sugestão final', 'Escreva aqui...', true));
 
   container.appendChild(bloco3);
 
@@ -475,13 +477,13 @@ function makeScaleBtnsHtml(id, saved) {
   `;
 }
 
-function makeOpenQuestion(id, label, texto, placeholder) {
+function makeOpenQuestion(id, label, texto, placeholder, required) {
   const saved = state.respostas[id] || '';
   const el = document.createElement('div');
-  el.className = 'open-question-card';
+  el.className = 'open-question-card' + (saved.trim() ? ' answered' : '');
   el.id = 'q-' + id;
   el.innerHTML = `
-    <div class="oq-label">${escapeHtml(label)}</div>
+    <div class="oq-label">${escapeHtml(label)}${required ? ' <span style="color:var(--error);">*</span>' : ''}</div>
     <p class="oq-text">${escapeHtml(texto)}</p>
     <textarea
       class="form-input"
@@ -629,6 +631,9 @@ function countAnswered(areas) {
   (areas || []).forEach(a => {
     if (state.respostas.p37 && state.respostas.p37[a] != null) count++;
   });
+  if (state.respostas.p38 && state.respostas.p38.trim()) count++;
+  if (state.respostas.p_aberta_1 && state.respostas.p_aberta_1.trim()) count++;
+  if (state.respostas.p_aberta_2 && state.respostas.p_aberta_2.trim()) count++;
   return count;
 }
 
@@ -691,17 +696,22 @@ function restoreAnswers(areas) {
 }
 
 function scrollToFirstUnanswered(areas) {
+  // Lista na ordem real do formulário
   const requiredIds = [];
-  for (let i = 1; i <= 34; i++) requiredIds.push('p' + i);
+  for (let i = 1; i <= 16; i++) requiredIds.push('p' + i);
+  requiredIds.push('p_aberta_1');
+  for (let i = 17; i <= 34; i++) requiredIds.push('p' + i);
+  requiredIds.push('p_aberta_2');
   requiredIds.push('p35', 'p36');
   if (areas && areas.length > 0) requiredIds.push('p37');
+  requiredIds.push('p38');
 
   for (const id of requiredIds) {
     let unanswered = false;
     if (id === 'p37') {
       unanswered = !areas.every(a => state.respostas.p37 && state.respostas.p37[a] != null);
-    } else if (id === 'p35') {
-      unanswered = !state.respostas.p35 || !state.respostas.p35.trim();
+    } else if (id === 'p35' || id === 'p38' || id === 'p_aberta_1' || id === 'p_aberta_2') {
+      unanswered = !state.respostas[id] || !state.respostas[id].trim();
     } else if (id === 'p36') {
       unanswered = !state.respostas.p36;
     } else {
@@ -759,6 +769,24 @@ function validateForm() {
       if (card) card.classList.add('required-error');
     }
   });
+
+  if (!state.respostas.p38 || !state.respostas.p38.trim()) {
+    errors.push('p38');
+    const card = document.getElementById('q-p38');
+    if (card) card.classList.add('required-error');
+  }
+
+  if (!state.respostas.p_aberta_1 || !state.respostas.p_aberta_1.trim()) {
+    errors.push('p_aberta_1');
+    const card = document.getElementById('q-p_aberta_1');
+    if (card) card.classList.add('required-error');
+  }
+
+  if (!state.respostas.p_aberta_2 || !state.respostas.p_aberta_2.trim()) {
+    errors.push('p_aberta_2');
+    const card = document.getElementById('q-p_aberta_2');
+    if (card) card.classList.add('required-error');
+  }
 
   return errors;
 }

@@ -59,13 +59,14 @@
           <tr>
             <th>Nome</th>
             <th>Email</th>
+            <th>Área</th>
             <th>Código</th>
             <th>Status</th>
             <th style="text-align:center;">Ações</th>
           </tr>
         </thead>
         <tbody id="tabela-body">
-          <tr><td colspan="5" class="table-empty">Nenhum participante ainda.</td></tr>
+          <tr><td colspan="6" class="table-empty">Nenhum participante ainda.</td></tr>
         </tbody>
       </table>
     </div>
@@ -86,6 +87,10 @@
       <label class="form-label">E-mail <span style="color:var(--text-muted);font-size:.8rem;">(opcional)</span></label>
       <input id="add-email" class="form-input" type="email" placeholder="email@empresa.com">
     </div>
+    <div class="form-group">
+      <label class="form-label">Área / Setor <span style="color:var(--text-muted);font-size:.8rem;">(opcional)</span></label>
+      <input id="add-area" class="form-input" type="text" placeholder="Ex: Marketing, Financeiro...">
+    </div>
     <div id="add-erro" class="alert alert-error hidden" style="margin-bottom:.75rem;"></div>
     <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
       <button id="btn-add-cancelar" class="btn btn-secondary" style="flex:1;">Cancelar</button>
@@ -100,7 +105,7 @@
     <h3>Importar Participantes</h3>
     <p style="font-size:.875rem;color:var(--text-muted);margin:.5rem 0 1.25rem;">
       Cole a lista abaixo ou faça upload de um arquivo CSV.<br>
-      Formato: <code>Nome, Email</code> (uma por linha; e-mail é opcional).
+      Formato: <code>Nome, Email, Área</code> (uma por linha; e-mail e área são opcionais).
     </p>
 
     <div class="form-group">
@@ -109,7 +114,7 @@
         id="import-texto"
         class="form-input"
         rows="7"
-        placeholder="João Silva, joao@empresa.com&#10;Maria Santos&#10;Carlos Pereira, carlos@empresa.com"
+        placeholder="João Silva, joao@empresa.com, Financeiro&#10;Maria Santos, , DHO&#10;Carlos Pereira, carlos@empresa.com"
         style="font-family:monospace;font-size:.875rem;"
       ></textarea>
     </div>
@@ -240,7 +245,7 @@ function renderTabela() {
   const tbody = document.getElementById('tabela-body');
 
   if (participantes.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Nenhum participante cadastrado ainda.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Nenhum participante cadastrado ainda.</td></tr>';
     return;
   }
 
@@ -253,6 +258,7 @@ function renderTabela() {
     tr.innerHTML = `
       <td style="font-weight:500;">${escHtml(p.nome)}</td>
       <td style="color:var(--text-muted);">${escHtml(p.email || '—')}</td>
+      <td style="color:var(--text-muted);">${escHtml(p.area || '—')}</td>
       <td>
         <code style="background:var(--bg);padding:.15em .4em;border-radius:4px;font-size:.9rem;letter-spacing:.05em;">
           ${escHtml(p.codigo)}
@@ -313,6 +319,7 @@ function setupModals() {
   document.getElementById('btn-add').addEventListener('click', () => {
     document.getElementById('add-nome').value  = '';
     document.getElementById('add-email').value = '';
+    document.getElementById('add-area').value  = '';
     document.getElementById('add-erro').classList.add('hidden');
     showModal('modal-add');
     setTimeout(() => document.getElementById('add-nome').focus(), 60);
@@ -351,6 +358,7 @@ function setupModals() {
 async function adicionarParticipante() {
   const nome   = document.getElementById('add-nome').value.trim();
   const email  = document.getElementById('add-email').value.trim();
+  const area   = document.getElementById('add-area').value.trim();
   const erroEl = document.getElementById('add-erro');
   const btn    = document.getElementById('btn-add-salvar');
 
@@ -369,6 +377,7 @@ async function adicionarParticipante() {
       empresa_id:   empresa.id,
       nome,
       email,
+      area,
     });
     if (!r.success) {
       erroEl.textContent = r.error;

@@ -348,19 +348,39 @@ function listarAplicacoes(data) {
 // ─────────────────────────────────────────────
 
 function adicionarParticipante(data) {
-  const { aplicacao_id, empresa_id, nome, email } = data;
+  const { aplicacao_id, empresa_id, nome, email, area } = data;
   if (!aplicacao_id || !empresa_id || !nome) {
     return { success: false, error: 'aplicacao_id, empresa_id e nome são obrigatórios.' };
+  }
+
+  const sheet = getSheet('participantes');
+  const { headers, map } = getHeaderMap(sheet);
+
+  // Garante coluna 'area'
+  let areaColIdx = map['area'];
+  if (areaColIdx === undefined) {
+    areaColIdx = headers.length;
+    sheet.getRange(1, areaColIdx + 1).setValue('area');
+    map['area'] = areaColIdx;
+    headers.push('area');
   }
 
   const id     = generateId();
   const codigo = generateUniqueCodigo();
   const now    = new Date().toISOString();
 
-  getSheet('participantes').appendRow([
-    id, aplicacao_id, empresa_id, nome, email || '', codigo, false, '',
-  ]);
+  const row = new Array(headers.length).fill('');
+  row[map['id']]            = id;
+  row[map['aplicacao_id']]  = aplicacao_id;
+  row[map['empresa_id']]    = empresa_id;
+  row[map['nome']]          = nome;
+  row[map['email']]         = email || '';
+  row[map['area']]          = area  || '';
+  row[map['codigo']]        = codigo;
+  row[map['respondido']]    = false;
+  row[map['respondido_em']] = '';
 
+  sheet.appendRow(row);
   return { success: true, id, codigo };
 }
 
@@ -371,16 +391,36 @@ function importarParticipantes(data) {
   }
 
   const sheet = getSheet('participantes');
-  const now   = new Date().toISOString();
-  const criados = [];
+  const { headers, map } = getHeaderMap(sheet);
+  const now = new Date().toISOString();
 
+  // Garante coluna 'area'
+  let areaColIdx = map['area'];
+  if (areaColIdx === undefined) {
+    areaColIdx = headers.length;
+    sheet.getRange(1, areaColIdx + 1).setValue('area');
+    map['area'] = areaColIdx;
+    headers.push('area');
+  }
+
+  const criados = [];
   for (const p of participantes) {
     const id     = generateId();
     const codigo = generateUniqueCodigo();
-    sheet.appendRow([
-      id, aplicacao_id, empresa_id, p.nome || '', p.email || '', codigo, false, '',
-    ]);
-    criados.push({ id, codigo, nome: p.nome, email: p.email });
+
+    const row = new Array(headers.length).fill('');
+    row[map['id']]            = id;
+    row[map['aplicacao_id']]  = aplicacao_id;
+    row[map['empresa_id']]    = empresa_id;
+    row[map['nome']]          = p.nome  || '';
+    row[map['email']]         = p.email || '';
+    row[map['area']]          = p.area  || '';
+    row[map['codigo']]        = codigo;
+    row[map['respondido']]    = false;
+    row[map['respondido_em']] = '';
+
+    sheet.appendRow(row);
+    criados.push({ id, codigo, nome: p.nome, email: p.email, area: p.area });
   }
 
   return { success: true, criados };
@@ -404,10 +444,11 @@ function exportarParticipantesCSV(data) {
     .filter(r => r.aplicacao_id === aplicacao_id);
 
   const linhas = [
-    ['Nome', 'Email', 'Código', 'Link', 'Respondido'],
+    ['Nome', 'Email', 'Área', 'Código', 'Link', 'Respondido'],
     ...rows.map(r => [
       r.nome,
       r.email,
+      r.area || '',
       r.codigo,
       (base_url || '') + '?codigo=' + r.codigo,
       r.respondido ? 'Sim' : 'Não',
@@ -432,6 +473,10 @@ const EIXOS = {
   'Foco na Solução':          ['p29','p30','p31','p32'],
 };
 
+// p15 (Baixo retrabalho) e p26 (Reação diante de problemas) estão na negativa:
+// nota alta = algo ruim → invertemos: score = 6 - valor_original
+const INVERTIDAS = new Set(['p15', 'p26']);
+
 function getDashboardData(data) {
   const { empresa_id } = data;
   if (!empresa_id) return { success: false, error: 'empresa_id obrigatório.' };
@@ -453,10 +498,14 @@ function getDashboardData(data) {
     const resp = respostas.filter(r => r.aplicacao_id === ap.id);
     if (resp.length === 0) return null;
 
-    // 8 eixos
+    // 8 eixos (p15 e p26 têm score invertido: 6 - valor)
     const eixos = {};
     for (const [nome, perguntas] of Object.entries(EIXOS)) {
-      const vals = resp.flatMap(r => perguntas.map(p => Number(r[p])).filter(v => v > 0));
+      const vals = resp.flatMap(r => perguntas.map(p => {
+        const v = Number(r[p]);
+        if (v <= 0) return null;
+        return INVERTIDAS.has(p) ? 6 - v : v;
+      }).filter(v => v != null));
       eixos[nome] = vals.length > 0 ? parseFloat((vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2)) : null;
     }
 
@@ -483,33 +532,60 @@ function getDashboardData(data) {
         : null;
     });
 
-    // p33 — distribuição Facilita/Neutro/Dificulta
+    // p33 — distribuição completa das 5 opções de resposta
     const p33vals = resp.map(r => Number(r['p33'])).filter(v => v > 0);
-    const p33c = { facilita: 0, neutro: 0, dificulta: 0 };
-    p33vals.forEach(v => {
-      if (v >= 4) p33c.facilita++;
-      else if (v === 3) p33c.neutro++;
-      else p33c.dificulta++;
-    });
+    const p33c = [0, 0, 0, 0, 0]; // índices 0-4 = valores 1-5
+    p33vals.forEach(v => { if (v >= 1 && v <= 5) p33c[v - 1]++; });
     const p33t = p33vals.length || 1;
     const p33dist = {
-      facilita:  Math.round(p33c.facilita  / p33t * 100),
-      neutro:    Math.round(p33c.neutro    / p33t * 100),
-      dificulta: Math.round(p33c.dificulta / p33t * 100),
+      dificulta_muito: Math.round(p33c[0] / p33t * 100),
+      dificulta:       Math.round(p33c[1] / p33t * 100),
+      neutro:          Math.round(p33c[2] / p33t * 100),
+      facilita:        Math.round(p33c[3] / p33t * 100),
+      facilita_muito:  Math.round(p33c[4] / p33t * 100),
     };
 
-    // Respostas abertas (p38, p_aberta_1, p_aberta_2)
+    // Respostas abertas (p35, p38, p_aberta_1, p_aberta_2)
     const partsAp = participantes.filter(p => p.aplicacao_id === ap.id);
     const respostasAbertas = resp.map(r => {
       const part = partsAp.find(p => p.id === r.participante_id) || {};
       return {
         id:               r.id,
         participante_nome:String(part.nome || ''),
+        participante_area:String(part.area || '').trim(),
+        p35:              String(r.p35        || '').trim(),
         p38:              String(r.p38        || '').trim(),
         p_aberta_1:       String(r.p_aberta_1 || '').trim(),
         p_aberta_2:       String(r.p_aberta_2 || '').trim(),
       };
-    }).filter(r => r.p38 || r.p_aberta_1 || r.p_aberta_2);
+    }).filter(r => r.p35 || r.p38 || r.p_aberta_1 || r.p_aberta_2);
+
+    // Eixos por área do respondente (para filtro no admin)
+    const eixosPorAreaMap = {};
+    resp.forEach(r => {
+      const part = partsAp.find(p => p.id === r.participante_id) || {};
+      const area = String(part.area || '').trim();
+      if (!area) return;
+      if (!eixosPorAreaMap[area]) {
+        eixosPorAreaMap[area] = {};
+        for (const nome of Object.keys(EIXOS)) eixosPorAreaMap[area][nome] = [];
+      }
+      for (const [nome, perguntas] of Object.entries(EIXOS)) {
+        perguntas.forEach(p => {
+          const v = Number(r[p]);
+          if (v > 0) eixosPorAreaMap[area][nome].push(INVERTIDAS.has(p) ? 6 - v : v);
+        });
+      }
+    });
+    const eixosPorArea = {};
+    for (const [area, dims] of Object.entries(eixosPorAreaMap)) {
+      eixosPorArea[area] = {};
+      for (const [nome, vals] of Object.entries(dims)) {
+        eixosPorArea[area][nome] = vals.length > 0
+          ? parseFloat((vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2))
+          : null;
+      }
+    }
 
     // Curadoria config
     const destaquesConfig = parsearJSON(
@@ -530,6 +606,7 @@ function getDashboardData(data) {
       aplicacao_ordem:    Number(ap.ordem),
       total_respondentes: resp.length,
       eixos,
+      eixos_por_area:     eixosPorArea,
       icc,
       posicionamento,
       avaliacao_areas:    avaliacaoAreas,
@@ -653,7 +730,7 @@ function setupPlanilha() {
   const abas = {
     empresas: ['id','nome','areas','max_aplicacoes','criado_em'],
     aplicacoes: ['id','empresa_id','nome','ordem','criado_em'],
-    participantes: ['id','aplicacao_id','empresa_id','nome','email','codigo','respondido','respondido_em'],
+    participantes: ['id','aplicacao_id','empresa_id','nome','email','area','codigo','respondido','respondido_em'],
     respostas: [
       'id','participante_id','aplicacao_id','empresa_id',
       'p1','p2','p3','p4','p5','p6','p7','p8',

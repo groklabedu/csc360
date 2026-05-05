@@ -161,7 +161,7 @@ function parseCSVText(text) {
     .filter(l => l && !l.startsWith('#'))
     .map(l => {
       const cols = l.split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
-      return { nome: cols[0] || '', email: cols[1] || '' };
+      return { nome: cols[0] || '', email: cols[1] || '', area: cols[2] || '' };
     })
     .filter(p => p.nome.length > 0);
 }

@@ -44,8 +44,8 @@
           </div>
           <p id="meta-info" style="font-size:.85rem;color:var(--text-muted);"></p>
         </div>
-        <div class="resultado-actions">
-          <button class="btn btn-outline" onclick="exportarPDF()">📄 Exportar PDF</button>
+        <div class="resultado-actions no-print">
+          <button class="btn btn-outline" onclick="window.print()">🖨️ Imprimir</button>
           <button id="btn-link-publico" class="btn btn-primary">🔗 Link público</button>
         </div>
       </div>
@@ -53,8 +53,17 @@
 
     <!-- Card: Radar 360° -->
     <div class="card" style="margin-bottom:1.25rem;">
-      <h3 style="font-size:1rem;font-weight:700;margin-bottom:1rem;">Diagnóstico 360°</h3>
+      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;">
+        <h3 style="font-size:1rem;font-weight:700;">Diagnóstico 360°</h3>
+        <div id="filtro-area-wrap" class="hidden" style="display:flex;align-items:center;gap:.5rem;font-size:.875rem;">
+          <label style="color:var(--text-muted);white-space:nowrap;">Filtrar por área:</label>
+          <select id="filtro-area" class="form-input" style="padding:.3rem .6rem;font-size:.85rem;height:auto;width:auto;min-width:160px;">
+            <option value="">Todas as áreas</option>
+          </select>
+        </div>
+      </div>
       <div id="radar-legend" class="radar-legend"></div>
+      <div id="filtro-area-info" style="font-size:.8rem;color:var(--primary);font-weight:600;margin-bottom:.5rem;"></div>
       <div style="position:relative;height:420px;max-width:560px;margin:0 auto;">
         <canvas id="radar-chart"></canvas>
       </div>
@@ -64,6 +73,15 @@
     <div id="card-areas" class="card hidden" style="margin-bottom:1.25rem;">
       <h3 style="font-size:1rem;font-weight:700;margin-bottom:1rem;">Avaliação por Área</h3>
       <div id="areas-conteudo"></div>
+    </div>
+
+    <!-- Card: Respostas Abertas (visualização + impressão) -->
+    <div id="card-respostas-abertas" class="card hidden" style="margin-bottom:1.25rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;">
+        <h3 style="font-size:1rem;font-weight:700;">Respostas Abertas</h3>
+        <button class="btn btn-outline no-print" onclick="window.print()" style="font-size:.85rem;padding:.4rem .875rem;">🖨️ Imprimir relatório</button>
+      </div>
+      <div id="respostas-abertas-conteudo"></div>
     </div>
 
     <!-- Card: Curadoria de respostas abertas -->
@@ -127,6 +145,7 @@
 <script src="admin.js"></script>
 <script>
 let radarChart = null;
+let dashData   = null;
 
 const EIXOS_KEYS = [
   'Clareza e Comunicação',
@@ -208,6 +227,7 @@ async function init() {
 // ── Render ──
 
 function renderConteudo(data, empresa_id) {
+  dashData = data;
   const { empresa, aplicacoes } = data;
 
   document.getElementById('empresa-nome').textContent = empresa.nome;
@@ -224,6 +244,30 @@ function renderConteudo(data, empresa_id) {
     badge.className = 'badge-posicionamento ' + (POS_CLASS[ultima.posicionamento] || '');
   }
 
+  // Popula filtro por área do respondente
+  const todasAreas = new Set();
+  aplicacoes.forEach(ap => {
+    if (ap.eixos_por_area) Object.keys(ap.eixos_por_area).forEach(a => todasAreas.add(a));
+  });
+  if (todasAreas.size > 0) {
+    const sel = document.getElementById('filtro-area');
+    [...todasAreas].sort().forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a; opt.textContent = a;
+      sel.appendChild(opt);
+    });
+    document.getElementById('filtro-area-wrap').classList.remove('hidden');
+    sel.addEventListener('change', () => {
+      const area = sel.value;
+      document.getElementById('filtro-area-info').textContent =
+        area ? 'Exibindo percepção da área: ' + area : '';
+      renderRadar(area ? aplicacoes.map(ap => ({
+        ...ap,
+        eixos: (ap.eixos_por_area && ap.eixos_por_area[area]) || {},
+      })) : aplicacoes);
+    });
+  }
+
   renderRadar(aplicacoes);
 
   if (empresa.areas && empresa.areas.length > 0) {
@@ -231,12 +275,14 @@ function renderConteudo(data, empresa_id) {
     document.getElementById('card-areas').classList.remove('hidden');
   }
 
+  renderRespostasAbertas(aplicacoes);
   renderCuradoria(aplicacoes);
 
   document.getElementById('conteudo').classList.remove('hidden');
 }
 
 function renderRadar(aplicacoes) {
+  if (radarChart) { radarChart.destroy(); radarChart = null; }
   document.getElementById('radar-legend').innerHTML = aplicacoes.map((ap, i) => `
     <span class="legend-item">
       <span class="legend-dot" style="background:${AP_COLORS[i % AP_COLORS.length].border}"></span>
@@ -316,10 +362,39 @@ function renderAreas(areas, aplicacoes) {
   `;
 }
 
-// ── PDF ──
+// ── Respostas Abertas ──
 
-function exportarPDF() {
-  window.print();
+function renderRespostasAbertas(aplicacoes) {
+  const aps = aplicacoes.filter(ap => ap.respostas_abertas && ap.respostas_abertas.length > 0);
+  if (aps.length === 0) return;
+
+  document.getElementById('card-respostas-abertas').classList.remove('hidden');
+
+  const CAMPOS = [
+    { key: 'p_aberta_1', label: 'Facilita / Dificulta' },
+    { key: 'p_aberta_2', label: 'Manter / Adquirir' },
+    { key: 'p35',        label: 'Uma mudança' },
+    { key: 'p38',        label: 'Comentário final' },
+  ];
+
+  document.getElementById('respostas-abertas-conteudo').innerHTML = aps.map(ap => {
+    const itens = ap.respostas_abertas.map(r => {
+      const linhas = CAMPOS.map(c => r[c.key]
+        ? `<div class="ra-linha"><strong>${escHtml(c.label)}:</strong> ${escHtml(r[c.key])}</div>`
+        : '').filter(Boolean).join('');
+      if (!linhas) return '';
+      const meta = [r.participante_nome, r.participante_area].filter(Boolean).join(' · ');
+      return `<div class="ra-item">
+        <div class="ra-meta">${escHtml(meta || 'Participante')}</div>
+        ${linhas}
+      </div>`;
+    }).filter(Boolean).join('');
+
+    return `<div class="ra-bloco">
+      <div class="ra-ap-nome">${escHtml(ap.aplicacao_nome)} <span style="font-weight:400;color:var(--text-muted);">(${ap.total_respondentes} resp.)</span></div>
+      ${itens || '<p style="font-size:.85rem;color:var(--text-muted);">Nenhuma resposta aberta.</p>'}
+    </div>`;
+  }).join('');
 }
 
 // ── Modal: link público ──
