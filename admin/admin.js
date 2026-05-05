@@ -193,15 +193,16 @@ function gerarMailto(participante, link) {
     '',
     'Você foi convidado(a) para responder à Avaliação CSC 360°.',
     '',
-    'Acesse o questionário pelo link:',
+    'Sua participação é muito importante! A pesquisa de satisfação com os serviços CSC tem como objetivo contribuir para a melhoria da eficácia, identificando pontos fortes e oportunidades de melhoria, sempre com foco em uma prestação de serviços de excelência. Ressaltamos que a avaliação não é sobre pessoas, e sim sobre as áreas e os serviços prestados.',
+    '',
+    'Acesse o questionário pelo link abaixo:',
     link,
     '',
-    'Código de acesso: ' + participante.codigo,
+    '🔐 Código de acesso: ' + participante.codigo,
     '',
-    'O questionário leva cerca de 10 minutos.',
-    'Suas respostas são confidenciais.',
+    'O questionário leva cerca de 10 minutos para ser concluído, e suas respostas são confidenciais.',
     '',
-    'Obrigado(a) pela participação!',
+    'Agradecemos pela sua participação!',
   ].join('\n');
   return 'mailto:' + encodeURIComponent(participante.email || '')
     + '?subject=' + encodeURIComponent(assunto)
