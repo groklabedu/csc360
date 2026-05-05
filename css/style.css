@@ -1,8 +1,8 @@
 :root {
-  --primary: #1d4ed8;
-  --primary-light: #dbeafe;
-  --primary-dark: #1e40af;
-  --secondary: #7c3aed;
+  --primary: #8C2B2B;
+  --primary-light: #f7e6e6;
+  --primary-dark: #6e2020;
+  --secondary: #c9971c;
   --success: #059669;
   --success-light: #d1fae5;
   --warning: #d97706;
@@ -47,6 +47,7 @@ body {
 }
 .app-header .logo { font-size: 1.1rem; font-weight: 700; letter-spacing: -.02em; }
 .app-header .logo span { opacity: .7; font-weight: 400; }
+.header-logo { height: 34px; border-radius: 4px; flex-shrink: 0; }
 
 /* ── Layout ── */
 .app-main {
@@ -166,9 +167,9 @@ textarea.form-input { resize: vertical; min-height: 100px; }
   margin-bottom: 1rem;
   color: #fff;
 }
-.block-header.bloco1 { background: linear-gradient(135deg, #1d4ed8, #3b82f6); }
-.block-header.bloco2 { background: linear-gradient(135deg, #7c3aed, #a855f7); }
-.block-header.bloco3 { background: linear-gradient(135deg, #047857, #10b981); }
+.block-header.bloco1 { background: linear-gradient(135deg, #8C2B2B, #bf4040); }
+.block-header.bloco2 { background: linear-gradient(135deg, #a07515, #c9971c); }
+.block-header.bloco3 { background: linear-gradient(135deg, #5c1a1a, #8C2B2B); }
 .block-header h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: .25rem; }
 .block-header p { font-size: .875rem; opacity: .9; }
 

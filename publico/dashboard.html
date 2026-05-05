@@ -14,17 +14,17 @@
     .gate-card { background: #fff; border-radius: 12px; padding: 3rem 2.5rem; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,.08); max-width: 360px; }
     .gate-icon { font-size: 3rem; margin-bottom: 1rem; }
     .gate-card h2 { font-size: 1.125rem; color: #374151; }
-    .spinner { display: inline-block; width: 22px; height: 22px; border: 2.5px solid #e2e8f0; border-top-color: #1d4ed8; border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: .75rem; }
+    .spinner { display: inline-block; width: 22px; height: 22px; border: 2.5px solid #e2e8f0; border-top-color: #8C2B2B; border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: .75rem; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Layout ── */
     .dash-wrap { max-width: 1200px; margin: 0 auto; padding: 0 1rem 3rem; }
 
     /* ── Header ── */
-    .dash-header { background: #0f2942; color: #fff; padding: 1.25rem 1.5rem; }
+    .dash-header { background: #8C2B2B; color: #fff; padding: 1.25rem 1.5rem; }
     .dash-header-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
     .dash-logo-area { display: flex; align-items: center; gap: .875rem; flex: 1; min-width: 200px; }
-    .dash-logo-icon { width: 48px; height: 48px; background: #fff; -webkit-mask-image: url('../assets/icons/icon-radar-logo.svg'); mask-image: url('../assets/icons/icon-radar-logo.svg'); -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; flex-shrink: 0; }
+    .dash-logo-img { height: 44px; border-radius: 4px; flex-shrink: 0; }
     .dash-title { font-size: 1.5rem; font-weight: 800; line-height: 1.2; letter-spacing: -.02em; }
     .dash-subtitle { font-size: .72rem; color: #94a3b8; margin-top: .2rem; line-height: 1.4; }
     .dash-periods { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
@@ -141,7 +141,7 @@
   <header class="dash-header">
     <div class="dash-header-inner">
       <div class="dash-logo-area">
-        <div class="dash-logo-icon"></div>
+        <img src="../assets/logo.png" class="dash-logo-img" alt="Assessor">
         <div>
           <div class="dash-title">RADAR CSC 360°</div>
           <div class="dash-subtitle">Diagnóstico de Excelência em Serviço e Comportamento</div>
