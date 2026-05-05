@@ -257,9 +257,9 @@ function renderTabela() {
     const tr         = document.createElement('tr');
 
     tr.innerHTML = `
-      <td style="font-weight:500;">${escHtml(p.nome)}</td>
-      <td style="color:var(--text-muted);">${escHtml(p.email || '—')}</td>
-      <td style="color:var(--text-muted);">${escHtml(p.area || '—')}</td>
+      <td style="font-weight:500;white-space:nowrap;">${escHtml(p.nome)}</td>
+      <td style="color:var(--text-muted);white-space:nowrap;">${escHtml(p.email || '—')}</td>
+      <td style="color:var(--text-muted);white-space:nowrap;">${escHtml(p.area || '—')}</td>
       <td>
         <code style="background:var(--bg);padding:.15em .4em;border-radius:4px;font-size:.9rem;letter-spacing:.05em;">
           ${escHtml(p.codigo)}
