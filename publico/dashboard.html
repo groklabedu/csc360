@@ -327,7 +327,7 @@ const scoreLabelPlugin = {
   }
 };
 
-// Eixo icon overlay plugin — adds CSS mask-image icons at each axis vertex
+// Eixo icon overlay plugin — adds CSS mask-image icons above each axis label text
 const eixoIconPlugin = {
   id:'eixoIcons',
   afterRender(chart) {
@@ -336,18 +336,34 @@ const eixoIconPlugin = {
     wrap.querySelectorAll('.eixo-icon-ov').forEach(e => e.remove());
     const r = chart.scales.r;
     if (!r) return;
-    const ICON = 13;
-    // Position icons right at the outer ring vertex (D + 0), between chart and scores (+22)
-    const iconDist = r.getDistanceFromCenterForValue(5);
+    const ICON = 14, GAP = 4;
+    const items = r._pointLabelItems;
     chart.data.labels.forEach((_, i) => {
-      const pt = r.getPointPosition(i, iconDist);
+      let iconX, iconY;
+      if (items && items[i]) {
+        const lbl = items[i];
+        const dx = lbl.x - r.xCenter, dy = lbl.y - r.yCenter;
+        const len = Math.sqrt(dx*dx+dy*dy) || 1;
+        const nx = dx/len, ny = dy/len;
+        const extentX = nx >= 0 ? lbl.right : lbl.left;
+        const extentY = ny >= 0 ? lbl.bottom : lbl.top;
+        const extent = (extentX - r.xCenter)*nx + (extentY - r.yCenter)*ny;
+        iconX = r.xCenter + nx*(extent + GAP + ICON/2);
+        iconY = r.yCenter + ny*(extent + GAP + ICON/2);
+      } else {
+        const pt = r.getPointPosition(i, r.getDistanceFromCenterForValue(5));
+        const dx = pt.x - r.xCenter, dy = pt.y - r.yCenter;
+        const len = Math.sqrt(dx*dx+dy*dy) || 1;
+        iconX = pt.x + (dx/len)*46;
+        iconY = pt.y + (dy/len)*46;
+      }
       const el = document.createElement('span');
       el.className = 'eixo-icon-ov';
       el.style.cssText = [
         'position:absolute', 'pointer-events:none',
         `width:${ICON}px`, `height:${ICON}px`,
-        `left:${Math.round(pt.x - ICON/2)}px`,
-        `top:${Math.round(pt.y - ICON/2)}px`,
+        `left:${Math.round(iconX - ICON/2)}px`,
+        `top:${Math.round(iconY - ICON/2)}px`,
         'background-color:#94a3b8',
         `-webkit-mask-image:url(../assets/icons/${EIXOS_ICONS[i]}.svg)`,
         `mask-image:url(../assets/icons/${EIXOS_ICONS[i]}.svg)`,
@@ -430,7 +446,7 @@ function renderRadar(aplicacoes, total) {
       label: ap.aplicacao_nome,
       data: EIXOS_KEYS.map(k => ap.eixos[k]??null),
       borderColor: s.color, backgroundColor: s.bg,
-      borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: s.color,
+      borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 4, pointBackgroundColor: s.color,
     };
   });
   document.getElementById('radar-legend').innerHTML = aplicacoes.map((ap,i) => {
