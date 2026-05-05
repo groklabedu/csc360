@@ -199,13 +199,23 @@ function renderAplicacoes() {
           <div class="ap-nome">${escHtml(ap.nome)}</div>
           <div class="ap-meta">Aplicação ${escHtml(String(ap.ordem))} · Criada em ${fmtDate(ap.criado_em)}</div>
         </div>
-        <a
-          href="participantes.html?aplicacao_id=${encodeURIComponent(ap.id)}&empresa_id=${encodeURIComponent(empresa.id)}"
-          class="btn btn-outline"
-          style="font-size:.8rem;padding:.4rem .875rem;white-space:nowrap;"
-        >
-          Participantes →
-        </a>
+        <div style="display:flex;gap:.5rem;align-items:center;">
+          <a
+            href="participantes.html?aplicacao_id=${encodeURIComponent(ap.id)}&empresa_id=${encodeURIComponent(empresa.id)}"
+            class="btn btn-outline"
+            style="font-size:.8rem;padding:.4rem .875rem;white-space:nowrap;"
+          >
+            Participantes →
+          </a>
+          <button
+            class="btn-icon"
+            title="Excluir aplicação"
+            data-id="${escHtml(ap.id)}"
+            data-nome="${escHtml(ap.nome)}"
+            onclick="confirmarDeletarAplicacao(this.dataset.id, this.dataset.nome)"
+            style="color:#dc2626;"
+          >🗑️</button>
+        </div>
       `;
       lista.appendChild(card);
     });
@@ -334,6 +344,22 @@ async function criarAplicacao() {
     erroEl.classList.remove('hidden');
   } finally {
     setLoading(btn, false);
+  }
+}
+
+// ── Deletar aplicação ──
+
+async function confirmarDeletarAplicacao(id, nome) {
+  if (!confirm('Excluir a aplicação "' + nome + '"?\n\nTodos os participantes e respostas desta aplicação serão removidos permanentemente.')) return;
+  try {
+    const r = await apiCall('deletarAplicacao', { aplicacao_id: id });
+    if (!r.success) { showToast(r.error, 'error'); return; }
+    showToast('Aplicação "' + nome + '" excluída.');
+    const apRes = await apiCall('listarAplicacoes', { empresa_id: empresa.id });
+    aplicacoes  = apRes.success ? (apRes.aplicacoes || []) : [];
+    renderAplicacoes();
+  } catch (err) {
+    showToast(err.message, 'error');
   }
 }
 

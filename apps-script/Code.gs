@@ -37,6 +37,9 @@ function doPost(e) {
       case 'salvarDestaquesConfig':   result = salvarDestaquesConfig(data); break;
       case 'criarLinkPublico':        result = criarLinkPublico(data); break;
       case 'validarToken':            result = validarToken(data); break;
+      case 'deletarParticipante':     result = deletarParticipante(data); break;
+      case 'deletarAplicacao':        result = deletarAplicacao(data); break;
+      case 'deletarEmpresa':          result = deletarEmpresa(data); break;
       default:
         result = { success: false, error: 'Ação desconhecida: ' + data.action };
     }
@@ -688,6 +691,63 @@ function validarToken(data) {
   }
 
   return { success: true, empresa_id: link.empresa_id };
+}
+
+// ─────────────────────────────────────────────
+// Utilitários internos
+// ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// Deleções
+// ─────────────────────────────────────────────
+
+function deleteRowsWhere(sheet, colName, value) {
+  const data = sheet.getDataRange().getValues();
+  const { map } = getHeaderMap(sheet);
+  const colIdx = map[colName];
+  if (colIdx === undefined) return;
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][colIdx]) === String(value)) sheet.deleteRow(i + 1);
+  }
+}
+
+function deleteRowById(sheet, id) {
+  const data = sheet.getDataRange().getValues();
+  const { map } = getHeaderMap(sheet);
+  const colIdx = map['id'];
+  if (colIdx === undefined) return false;
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][colIdx]) === String(id)) { sheet.deleteRow(i + 1); return true; }
+  }
+  return false;
+}
+
+function deletarParticipante(data) {
+  const { participante_id } = data;
+  if (!participante_id) return { success: false, error: 'participante_id obrigatório.' };
+  deleteRowById(getSheet('participantes'), participante_id);
+  deleteRowsWhere(getSheet('respostas'), 'participante_id', participante_id);
+  return { success: true };
+}
+
+function deletarAplicacao(data) {
+  const { aplicacao_id } = data;
+  if (!aplicacao_id) return { success: false, error: 'aplicacao_id obrigatório.' };
+  deleteRowById(getSheet('aplicacoes'), aplicacao_id);
+  deleteRowsWhere(getSheet('participantes'), 'aplicacao_id', aplicacao_id);
+  deleteRowsWhere(getSheet('respostas'),     'aplicacao_id', aplicacao_id);
+  return { success: true };
+}
+
+function deletarEmpresa(data) {
+  const { empresa_id } = data;
+  if (!empresa_id) return { success: false, error: 'empresa_id obrigatório.' };
+  deleteRowById(getSheet('empresas'), empresa_id);
+  deleteRowsWhere(getSheet('aplicacoes'),    'empresa_id', empresa_id);
+  deleteRowsWhere(getSheet('participantes'), 'empresa_id', empresa_id);
+  deleteRowsWhere(getSheet('respostas'),     'empresa_id', empresa_id);
+  deleteRowsWhere(getSheet('links_publicos'),'empresa_id', empresa_id);
+  return { success: true };
 }
 
 // ─────────────────────────────────────────────

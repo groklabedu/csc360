@@ -286,6 +286,14 @@ function renderTabela() {
             ? `<a class="btn-icon" title="Enviar convite por e-mail" href="${escHtml(gerarMailto(p, link))}" target="_blank">✉️</a>`
             : `<button class="btn-icon" title="Sem e-mail cadastrado" disabled style="opacity:.4;">✉️</button>`
           }
+          <button
+            class="btn-icon"
+            title="Excluir participante"
+            data-id="${escHtml(p.id)}"
+            data-nome="${escHtml(p.nome)}"
+            onclick="confirmarDeletar(this.dataset.id, this.dataset.nome)"
+            style="color:#dc2626;"
+          >🗑️</button>
         </div>
       </td>
     `;
@@ -504,6 +512,20 @@ async function recarregarParticipantes() {
     participantes = r.participantes || [];
     renderStats();
     renderTabela();
+  }
+}
+
+// ── Deletar participante ──
+
+async function confirmarDeletar(id, nome) {
+  if (!confirm('Excluir "' + nome + '"?\n\nEsta ação também remove a resposta do participante, se houver.')) return;
+  try {
+    const r = await apiCall('deletarParticipante', { participante_id: id });
+    if (!r.success) { showToast(r.error, 'error'); return; }
+    showToast('"' + nome + '" removido.');
+    await recarregarParticipantes();
+  } catch (err) {
+    showToast(err.message, 'error');
   }
 }
 
