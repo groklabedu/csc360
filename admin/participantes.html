@@ -435,8 +435,19 @@ function lerArquivoCSV(e) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
-    document.getElementById('import-texto').value = ev.target.result;
-    atualizarPreviewImport();
+    const text = ev.target.result;
+    if (text.includes('�')) {
+      // UTF-8 falhou (arquivo Windows-1252/Excel) — relê com a codificação correta
+      const r2 = new FileReader();
+      r2.onload = ev2 => {
+        document.getElementById('import-texto').value = ev2.target.result;
+        atualizarPreviewImport();
+      };
+      r2.readAsText(file, 'windows-1252');
+    } else {
+      document.getElementById('import-texto').value = text;
+      atualizarPreviewImport();
+    }
   };
   reader.readAsText(file, 'UTF-8');
 }
