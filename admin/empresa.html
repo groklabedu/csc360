@@ -107,10 +107,34 @@
         placeholder="Ex: 1ª Rodada — Março/2025"
       >
     </div>
+    <div class="form-group">
+      <label class="form-label">Data limite para resposta <span style="color:var(--text-muted);font-size:.8rem;">(opcional)</span></label>
+      <input id="ap-data-limite" class="form-input" type="date">
+    </div>
     <div id="ap-erro" class="alert alert-error hidden" style="margin-bottom:.75rem;"></div>
     <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
       <button id="btn-ap-cancelar" class="btn btn-secondary" style="flex:1;">Cancelar</button>
       <button id="btn-ap-criar"    class="btn btn-primary"    style="flex:2;">Criar Aplicação</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: editar aplicação -->
+<div id="modal-editar-aplicacao" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:460px;">
+    <h3>Editar Aplicação</h3>
+    <div class="form-group" style="margin-top:1.25rem;">
+      <label class="form-label">Nome <span style="color:var(--error);">*</span></label>
+      <input id="edit-ap-nome" class="form-input" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data limite para resposta <span style="color:var(--text-muted);font-size:.8rem;">(opcional)</span></label>
+      <input id="edit-ap-data-limite" class="form-input" type="date">
+    </div>
+    <div id="edit-ap-erro" class="alert alert-error hidden" style="margin-bottom:.75rem;"></div>
+    <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
+      <button id="btn-edit-ap-cancelar" class="btn btn-secondary" style="flex:1;">Cancelar</button>
+      <button id="btn-edit-ap-salvar"   class="btn btn-primary"    style="flex:2;">Salvar</button>
     </div>
   </div>
 </div>
@@ -120,9 +144,10 @@
 <script src="../config.js"></script>
 <script src="admin.js"></script>
 <script>
-let empresa    = null;
-let aplicacoes = [];
-let tagInput   = null;
+let empresa              = null;
+let aplicacoes           = [];
+let tagInput             = null;
+let editingAplicacaoId   = null;
 
 // ── Init ──
 
@@ -192,12 +217,15 @@ function renderAplicacoes() {
   } else {
     empty.classList.add('hidden');
     aplicacoes.forEach(ap => {
+      const prazoHtml = ap.data_limite
+        ? ` · Prazo: <strong>${fmtDateLocal(ap.data_limite)}</strong>`
+        : '';
       const card = document.createElement('div');
       card.className = 'aplicacao-card';
       card.innerHTML = `
         <div style="flex:1;">
           <div class="ap-nome">${escHtml(ap.nome)}</div>
-          <div class="ap-meta">Aplicação ${escHtml(String(ap.ordem))} · Criada em ${fmtDate(ap.criado_em)}</div>
+          <div class="ap-meta">Aplicação ${escHtml(String(ap.ordem))} · Criada em ${fmtDate(ap.criado_em)}${prazoHtml}</div>
         </div>
         <div style="display:flex;gap:.5rem;align-items:center;">
           <a
@@ -207,6 +235,14 @@ function renderAplicacoes() {
           >
             Participantes →
           </a>
+          <button
+            class="btn-icon"
+            title="Editar aplicação"
+            data-id="${escHtml(ap.id)}"
+            data-nome="${escHtml(ap.nome)}"
+            data-data-limite="${escHtml(ap.data_limite || '')}"
+            onclick="abrirEditarAplicacao(this.dataset.id, this.dataset.nome, this.dataset.dataLimite)"
+          >✏️</button>
           <button
             class="btn-icon"
             title="Excluir aplicação"
@@ -253,7 +289,8 @@ function setupModals() {
 
   // Nova aplicação
   document.getElementById('btn-nova-aplicacao').addEventListener('click', () => {
-    document.getElementById('ap-nome').value = '';
+    document.getElementById('ap-nome').value        = '';
+    document.getElementById('ap-data-limite').value = '';
     document.getElementById('ap-erro').classList.add('hidden');
     showModal('modal-aplicacao');
     setTimeout(() => document.getElementById('ap-nome').focus(), 60);
@@ -266,6 +303,13 @@ function setupModals() {
     if (e.key === 'Enter') criarAplicacao();
   });
   document.getElementById('btn-ap-criar').addEventListener('click', criarAplicacao);
+
+  // Editar aplicação
+  document.getElementById('btn-edit-ap-cancelar').addEventListener('click', () => hideModal('modal-editar-aplicacao'));
+  document.getElementById('modal-editar-aplicacao').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-editar-aplicacao')) hideModal('modal-editar-aplicacao');
+  });
+  document.getElementById('btn-edit-ap-salvar').addEventListener('click', salvarEditarAplicacao);
 }
 
 async function salvarEmpresa() {
@@ -311,9 +355,10 @@ async function salvarEmpresa() {
 }
 
 async function criarAplicacao() {
-  const nome   = document.getElementById('ap-nome').value.trim();
-  const erroEl = document.getElementById('ap-erro');
-  const btn    = document.getElementById('btn-ap-criar');
+  const nome       = document.getElementById('ap-nome').value.trim();
+  const dataLimite = document.getElementById('ap-data-limite').value;
+  const erroEl     = document.getElementById('ap-erro');
+  const btn        = document.getElementById('btn-ap-criar');
 
   erroEl.classList.add('hidden');
   if (!nome) {
@@ -325,7 +370,7 @@ async function criarAplicacao() {
 
   setLoading(btn, true);
   try {
-    const r = await apiCall('criarAplicacao', { empresa_id: empresa.id, nome });
+    const r = await apiCall('criarAplicacao', { empresa_id: empresa.id, nome, data_limite: dataLimite || '' });
     if (!r.success) {
       erroEl.textContent = r.error;
       erroEl.classList.remove('hidden');
@@ -333,12 +378,54 @@ async function criarAplicacao() {
     }
     hideModal('modal-aplicacao');
 
-    // Reload aplicacoes
     const apRes = await apiCall('listarAplicacoes', { empresa_id: empresa.id });
     aplicacoes  = apRes.success ? (apRes.aplicacoes || []) : aplicacoes;
     renderAplicacoes();
     showToast('Aplicação criada!');
 
+  } catch (err) {
+    erroEl.textContent = err.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+function abrirEditarAplicacao(id, nome, dataLimite) {
+  editingAplicacaoId = id;
+  document.getElementById('edit-ap-nome').value        = nome;
+  document.getElementById('edit-ap-data-limite').value = dataLimite || '';
+  document.getElementById('edit-ap-erro').classList.add('hidden');
+  showModal('modal-editar-aplicacao');
+  setTimeout(() => document.getElementById('edit-ap-nome').focus(), 60);
+}
+
+async function salvarEditarAplicacao() {
+  const nome       = document.getElementById('edit-ap-nome').value.trim();
+  const dataLimite = document.getElementById('edit-ap-data-limite').value;
+  const erroEl     = document.getElementById('edit-ap-erro');
+  const btn        = document.getElementById('btn-edit-ap-salvar');
+
+  erroEl.classList.add('hidden');
+  if (!nome) {
+    erroEl.textContent = 'Nome obrigatório.';
+    erroEl.classList.remove('hidden');
+    return;
+  }
+
+  setLoading(btn, true);
+  try {
+    const r = await apiCall('editarAplicacao', { id: editingAplicacaoId, nome, data_limite: dataLimite || '' });
+    if (!r.success) {
+      erroEl.textContent = r.error;
+      erroEl.classList.remove('hidden');
+      return;
+    }
+    hideModal('modal-editar-aplicacao');
+    const apRes = await apiCall('listarAplicacoes', { empresa_id: empresa.id });
+    aplicacoes  = apRes.success ? (apRes.aplicacoes || []) : aplicacoes;
+    renderAplicacoes();
+    showToast('Aplicação atualizada!');
   } catch (err) {
     erroEl.textContent = err.message;
     erroEl.classList.remove('hidden');

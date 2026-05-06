@@ -283,7 +283,7 @@ function renderTabela() {
             onclick="abrirCodigo(this.dataset.id, this.dataset.nome, this.dataset.codigo, this.dataset.email)"
           >🔗</button>
           ${p.email
-            ? `<a class="btn-icon" title="Enviar convite por e-mail" href="${escHtml(gerarMailto(p, link))}" target="_blank">✉️</a>`
+            ? `<a class="btn-icon" title="Enviar convite por e-mail" href="${escHtml(gerarMailto(p, link, aplicacao.data_limite))}" target="_blank">✉️</a>`
             : `<button class="btn-icon" title="Sem e-mail cadastrado" disabled style="opacity:.4;">✉️</button>`
           }
           <button
@@ -314,7 +314,7 @@ function abrirCodigo(id, nome, codigo, email) {
     showToast(ok ? 'Link copiado!' : 'Não foi possível copiar.', ok ? 'success' : 'error');
   };
 
-  const mailtoHref = gerarMailto({ nome, codigo, email }, link);
+  const mailtoHref = gerarMailto({ nome, codigo, email }, link, aplicacao.data_limite);
   const emailBtn   = document.getElementById('btn-enviar-email');
   emailBtn.href    = mailtoHref;
   emailBtn.style.display = email ? '' : 'none';

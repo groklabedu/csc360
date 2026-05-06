@@ -186,8 +186,11 @@ function parseCSVText(text) {
 
 // ── Mailto builder ──
 
-function gerarMailto(participante, link) {
+function gerarMailto(participante, link, dataLimite) {
   const assunto = 'Avaliação CSC 360° — Seu código de acesso';
+  const prazoLinhas = dataLimite
+    ? ['', '⏰ Prazo para resposta: ' + fmtDateLocal(dataLimite)]
+    : [];
   const corpo = [
     'Olá, ' + participante.nome + '!',
     '',
@@ -199,6 +202,7 @@ function gerarMailto(participante, link) {
     link,
     '',
     '🔐 Código de acesso: ' + participante.codigo,
+    ...prazoLinhas,
     '',
     'O questionário leva cerca de 10 minutos para ser concluído, e suas respostas são confidenciais.',
     '',
@@ -234,6 +238,13 @@ function fmtDate(iso) {
   try {
     return new Date(iso).toLocaleDateString('pt-BR');
   } catch { return iso; }
+}
+
+function fmtDateLocal(dateStr) {
+  if (!dateStr) return '—';
+  const parts = String(dateStr).split('-');
+  if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+  return dateStr;
 }
 
 // ── Render breadcrumb ──

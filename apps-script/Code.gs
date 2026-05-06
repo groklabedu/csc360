@@ -27,6 +27,7 @@ function doPost(e) {
       case 'criarEmpresa':         result = criarEmpresa(data); break;
       case 'editarEmpresa':        result = editarEmpresa(data); break;
       case 'criarAplicacao':       result = criarAplicacao(data); break;
+      case 'editarAplicacao':      result = editarAplicacao(data); break;
       case 'adicionarParticipante':result = adicionarParticipante(data); break;
       case 'importarParticipantes':result = importarParticipantes(data); break;
       case 'listarEmpresas':       result = listarEmpresas(data); break;
@@ -144,6 +145,18 @@ function validarCodigo(data) {
 
     if (row[map['respondido']] === true || row[map['respondido']] === 'TRUE') {
       return { success: false, error: 'Este questionário já foi respondido.' };
+    }
+
+    const aplicacaoId = String(row[map['aplicacao_id']]);
+    const ap = sheetToObjects(getSheet('aplicacoes')).find(a => a.id === aplicacaoId);
+    if (ap && ap.data_limite) {
+      const parts = String(ap.data_limite).split('-').map(Number);
+      if (parts.length === 3) {
+        const limite = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
+        if (new Date() > limite) {
+          return { success: false, error: 'O prazo para resposta encerrou em ' + parts[2].toString().padStart(2,'0') + '/' + parts[1].toString().padStart(2,'0') + '/' + parts[0] + '.' };
+        }
+      }
     }
 
     const participante = {
@@ -311,10 +324,9 @@ function listarEmpresas() {
 // ─────────────────────────────────────────────
 
 function criarAplicacao(data) {
-  const { empresa_id, nome } = data;
+  const { empresa_id, nome, data_limite } = data;
   if (!empresa_id || !nome) return { success: false, error: 'empresa_id e nome são obrigatórios.' };
 
-  // Verifica limite
   const empresa = getEmpresaById(empresa_id);
   if (!empresa) return { success: false, error: 'Empresa não encontrada.' };
 
@@ -326,13 +338,56 @@ function criarAplicacao(data) {
     return { success: false, error: `Limite de ${max} aplicações atingido para esta empresa.` };
   }
 
+  const sheet = getSheet('aplicacoes');
+  const { headers, map } = getHeaderMap(sheet);
+
+  if (map['data_limite'] === undefined) {
+    const idx = headers.length;
+    sheet.getRange(1, idx + 1).setValue('data_limite');
+    map['data_limite'] = idx;
+    headers.push('data_limite');
+  }
+
   const id    = generateId();
   const ordem = existentes.length + 1;
   const now   = new Date().toISOString();
 
-  getSheet('aplicacoes').appendRow([id, empresa_id, nome, ordem, now]);
+  const row = new Array(headers.length).fill('');
+  row[map['id']]          = id;
+  row[map['empresa_id']]  = empresa_id;
+  row[map['nome']]        = nome;
+  row[map['ordem']]       = ordem;
+  row[map['criado_em']]   = now;
+  row[map['data_limite']] = data_limite || '';
 
+  sheet.appendRow(row);
   return { success: true, id };
+}
+
+function editarAplicacao(data) {
+  const { id, nome, data_limite } = data;
+  if (!id) return { success: false, error: 'ID obrigatório.' };
+
+  const sheet = getSheet('aplicacoes');
+  const rows  = sheet.getDataRange().getValues();
+  const { headers, map } = getHeaderMap(sheet);
+
+  if (map['data_limite'] === undefined) {
+    const idx = headers.length;
+    sheet.getRange(1, idx + 1).setValue('data_limite');
+    map['data_limite'] = idx;
+    headers.push('data_limite');
+  }
+
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][map['id']] !== id) continue;
+    const r = i + 1;
+    if (nome        !== undefined) sheet.getRange(r, map['nome']       + 1).setValue(nome);
+    if (data_limite !== undefined) sheet.getRange(r, map['data_limite'] + 1).setValue(data_limite || '');
+    return { success: true };
+  }
+
+  return { success: false, error: 'Aplicação não encontrada.' };
 }
 
 function listarAplicacoes(data) {
@@ -789,7 +844,7 @@ function setupPlanilha() {
 
   const abas = {
     empresas: ['id','nome','areas','max_aplicacoes','criado_em'],
-    aplicacoes: ['id','empresa_id','nome','ordem','criado_em'],
+    aplicacoes: ['id','empresa_id','nome','ordem','criado_em','data_limite'],
     participantes: ['id','aplicacao_id','empresa_id','nome','email','area','codigo','respondido','respondido_em'],
     respostas: [
       'id','participante_id','aplicacao_id','empresa_id',
