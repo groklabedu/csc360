@@ -38,6 +38,8 @@ function doPost(e) {
       case 'salvarDestaquesConfig':   result = salvarDestaquesConfig(data); break;
       case 'criarLinkPublico':        result = criarLinkPublico(data); break;
       case 'validarToken':            result = validarToken(data); break;
+      case 'getRespostaParticipante':  result = getRespostaParticipante(data); break;
+      case 'exportarResultadosAplicacao': result = exportarResultadosAplicacao(data); break;
       case 'deletarParticipante':     result = deletarParticipante(data); break;
       case 'deletarAplicacao':        result = deletarAplicacao(data); break;
       case 'deletarEmpresa':          result = deletarEmpresa(data); break;
@@ -787,6 +789,68 @@ function deleteRowById(sheet, id) {
     if (String(data[i][colIdx]) === String(id)) { sheet.deleteRow(i + 1); return true; }
   }
   return false;
+}
+
+function getRespostaParticipante(data) {
+  const { participante_id } = data;
+  if (!participante_id) return { success: false, error: 'participante_id obrigatório.' };
+
+  const resp = sheetToObjects(getSheet('respostas')).find(r => r.participante_id === participante_id);
+  if (!resp) return { success: false, error: 'Resposta não encontrada.' };
+
+  const eixos = {};
+  for (const [nome, perguntas] of Object.entries(EIXOS)) {
+    const vals = perguntas.map(p => {
+      const v = Number(resp[p]);
+      return v > 0 ? (INVERTIDAS.has(p) ? 6 - v : v) : null;
+    }).filter(v => v != null);
+    eixos[nome] = vals.length > 0 ? parseFloat((vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2)) : null;
+  }
+
+  const eixoVals = Object.values(eixos).filter(v => v != null);
+  const icc = eixoVals.length > 0
+    ? parseFloat((eixoVals.reduce((a,b)=>a+b,0)/eixoVals.length).toFixed(2))
+    : null;
+
+  return { success: true, eixos, icc };
+}
+
+function exportarResultadosAplicacao(data) {
+  const { aplicacao_id } = data;
+  if (!aplicacao_id) return { success: false, error: 'aplicacao_id obrigatório.' };
+
+  const participantes = sheetToObjects(getSheet('participantes'))
+    .filter(r => r.aplicacao_id === aplicacao_id);
+  const respostas = sheetToObjects(getSheet('respostas'))
+    .filter(r => r.aplicacao_id === aplicacao_id);
+
+  const eixoNomes = Object.keys(EIXOS);
+  const header = ['Nome', 'Área', ...eixoNomes, 'ICC', 'Respondido'];
+
+  const rows = participantes.map(part => {
+    const respondido = part.respondido === true || part.respondido === 'TRUE';
+    if (!respondido) return [part.nome, part.area || '', ...eixoNomes.map(() => ''), '', 'Não'];
+
+    const resp = respostas.find(r => r.participante_id === part.id);
+    if (!resp) return [part.nome, part.area || '', ...eixoNomes.map(() => ''), '', 'Sim'];
+
+    const scores = eixoNomes.map(nome => {
+      const vals = EIXOS[nome].map(p => {
+        const v = Number(resp[p]);
+        return v > 0 ? (INVERTIDAS.has(p) ? 6 - v : v) : null;
+      }).filter(v => v != null);
+      return vals.length > 0 ? parseFloat((vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2)) : '';
+    });
+
+    const iccVals = scores.filter(v => v !== '');
+    const icc = iccVals.length > 0
+      ? parseFloat((iccVals.reduce((a,b)=>a+b,0)/iccVals.length).toFixed(2))
+      : '';
+
+    return [part.nome, part.area || '', ...scores, icc, 'Sim'];
+  });
+
+  return { success: true, rows: [header, ...rows] };
 }
 
 function deletarParticipante(data) {

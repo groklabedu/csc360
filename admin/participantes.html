@@ -50,7 +50,8 @@
       <button id="btn-add"    class="btn btn-primary">+ Adicionar</button>
       <button id="btn-import" class="btn btn-secondary">📥 Importar CSV</button>
       <div class="toolbar-spacer"></div>
-      <button id="btn-export" class="btn btn-outline">📤 Exportar CSV</button>
+      <button id="btn-resultados" class="btn btn-outline">📊 Resultados CSV</button>
+      <button id="btn-export"     class="btn btn-outline">📤 Exportar CSV</button>
     </div>
 
     <!-- Tabela -->
@@ -163,6 +164,15 @@
       </a>
     </div>
     <button onclick="hideModal('modal-codigo')" class="btn btn-secondary btn-full" style="margin-top:.625rem;">Fechar</button>
+  </div>
+</div>
+
+<!-- Modal: resultados individuais -->
+<div id="modal-resultados" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:480px;">
+    <h3 id="modal-resultados-nome" style="margin-bottom:1rem;"></h3>
+    <div id="modal-resultados-corpo"></div>
+    <button onclick="hideModal('modal-resultados')" class="btn btn-secondary" style="width:100%;margin-top:1rem;">Fechar</button>
   </div>
 </div>
 
@@ -286,6 +296,10 @@ function renderTabela() {
             ? `<a class="btn-icon" title="Enviar convite por e-mail" href="${escHtml(gerarMailto(p, link, aplicacao.data_limite))}" target="_blank">✉️</a>`
             : `<button class="btn-icon" title="Sem e-mail cadastrado" disabled style="opacity:.4;">✉️</button>`
           }
+          ${respondido
+            ? `<button class="btn-icon" title="Ver resultados individuais" data-id="${escHtml(p.id)}" data-nome="${escHtml(p.nome)}" onclick="verResultados(this.dataset.id, this.dataset.nome)">📊</button>`
+            : `<button class="btn-icon" title="Ainda não respondeu" disabled style="opacity:.4;">📊</button>`
+          }
           <button
             class="btn-icon"
             title="Excluir participante"
@@ -359,8 +373,16 @@ function setupModals() {
   document.getElementById('import-arquivo').addEventListener('change', lerArquivoCSV);
   document.getElementById('btn-import-salvar').addEventListener('click', importarParticipantes);
 
-  // Exportar
+  // Exportar CSV participantes
   document.getElementById('btn-export').addEventListener('click', exportarCSV);
+
+  // Exportar resultados (notas por eixo)
+  document.getElementById('btn-resultados').addEventListener('click', exportarResultados);
+
+  // Modal resultados individuais
+  document.getElementById('modal-resultados').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-resultados')) hideModal('modal-resultados');
+  });
 }
 
 // ── Adicionar participante ──
@@ -512,6 +534,77 @@ async function recarregarParticipantes() {
     participantes = r.participantes || [];
     renderStats();
     renderTabela();
+  }
+}
+
+// ── Resultados individuais ──
+
+async function verResultados(id, nome) {
+  document.getElementById('modal-resultados-nome').textContent = nome;
+  document.getElementById('modal-resultados-corpo').innerHTML =
+    '<div style="text-align:center;padding:1.5rem;"><span class="spinner dark"></span></div>';
+  showModal('modal-resultados');
+
+  try {
+    const r = await apiCall('getRespostaParticipante', { participante_id: id });
+    if (!r.success) {
+      document.getElementById('modal-resultados-corpo').innerHTML =
+        '<p style="color:var(--error);">' + escHtml(r.error) + '</p>';
+      return;
+    }
+
+    const cor   = v => v >= 4 ? '#16a34a' : v >= 3 ? '#ca8a04' : '#dc2626';
+    const label = v => v >= 4 ? 'Bom' : v >= 3 ? 'Regular' : 'Atenção';
+
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:.875rem;">';
+    html += '<thead><tr style="border-bottom:2px solid var(--border);">'
+          + '<th style="text-align:left;padding:.5rem .625rem;font-weight:600;">Eixo</th>'
+          + '<th style="text-align:center;padding:.5rem .625rem;font-weight:600;width:60px;">Nota</th>'
+          + '<th style="text-align:center;padding:.5rem .625rem;font-weight:600;width:70px;"></th>'
+          + '</tr></thead><tbody>';
+
+    for (const [eixo, val] of Object.entries(r.eixos)) {
+      if (val == null) continue;
+      html += `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:.5rem .625rem;">${escHtml(eixo)}</td>
+        <td style="text-align:center;padding:.5rem .625rem;font-weight:700;color:${cor(val)};">${val.toFixed(2)}</td>
+        <td style="text-align:center;padding:.5rem .625rem;font-size:.75rem;color:${cor(val)};">${label(val)}</td>
+      </tr>`;
+    }
+
+    if (r.icc != null) {
+      html += `<tr style="background:#f8fafc;border-top:2px solid var(--border);">
+        <td style="padding:.625rem .625rem;font-weight:700;">ICC</td>
+        <td style="text-align:center;padding:.625rem;font-weight:700;font-size:1.05rem;color:${cor(r.icc)};">${r.icc.toFixed(2)}</td>
+        <td></td>
+      </tr>`;
+    }
+
+    html += '</tbody></table>';
+    document.getElementById('modal-resultados-corpo').innerHTML = html;
+
+  } catch (err) {
+    document.getElementById('modal-resultados-corpo').innerHTML =
+      '<p style="color:var(--error);">' + escHtml(err.message) + '</p>';
+  }
+}
+
+// ── Exportar resultados por eixo ──
+
+async function exportarResultados() {
+  const btn = document.getElementById('btn-resultados');
+  setLoading(btn, true);
+  try {
+    const r = await apiCall('exportarResultadosAplicacao', { aplicacao_id: aplicacao.id });
+    if (!r.success) { showToast(r.error, 'error'); return; }
+    const filename = (empresa.nome + '_' + aplicacao.nome + '_resultados')
+      .replace(/[^a-z0-9]/gi, '_') + '.csv';
+    downloadCSV(r.rows, filename);
+    showToast('Resultados exportados!');
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    setLoading(btn, false);
   }
 }
 
