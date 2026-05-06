@@ -556,27 +556,25 @@ async function verResultados(id, nome) {
     const cor   = v => v >= 4 ? '#16a34a' : v >= 3 ? '#ca8a04' : '#dc2626';
     const label = v => v >= 4 ? 'Bom' : v >= 3 ? 'Regular' : 'Atenção';
 
-    let html = '<table style="width:100%;border-collapse:collapse;font-size:.875rem;">';
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:.875rem;table-layout:fixed;">';
+    html += '<colgroup><col style="width:auto"><col style="width:110px"></colgroup>';
     html += '<thead><tr style="border-bottom:2px solid var(--border);">'
           + '<th style="text-align:left;padding:.5rem .625rem;font-weight:600;">Eixo</th>'
-          + '<th style="text-align:center;padding:.5rem .625rem;font-weight:600;width:60px;">Nota</th>'
-          + '<th style="text-align:center;padding:.5rem .625rem;font-weight:600;width:70px;"></th>'
+          + '<th style="text-align:right;padding:.5rem .625rem;font-weight:600;">Nota</th>'
           + '</tr></thead><tbody>';
 
     for (const [eixo, val] of Object.entries(r.eixos)) {
       if (val == null) continue;
       html += `<tr style="border-bottom:1px solid var(--border);">
-        <td style="padding:.5rem .625rem;">${escHtml(eixo)}</td>
-        <td style="text-align:center;padding:.5rem .625rem;font-weight:700;color:${cor(val)};">${val.toFixed(2)}</td>
-        <td style="text-align:center;padding:.5rem .625rem;font-size:.75rem;color:${cor(val)};">${label(val)}</td>
+        <td style="padding:.5rem .625rem;word-break:break-word;">${escHtml(eixo)}</td>
+        <td style="text-align:right;padding:.5rem .625rem;font-weight:700;color:${cor(val)};white-space:nowrap;">${val.toFixed(2)} <span style="font-size:.72rem;font-weight:400;">${label(val)}</span></td>
       </tr>`;
     }
 
     if (r.icc != null) {
       html += `<tr style="background:#f8fafc;border-top:2px solid var(--border);">
         <td style="padding:.625rem .625rem;font-weight:700;">ICC</td>
-        <td style="text-align:center;padding:.625rem;font-weight:700;font-size:1.05rem;color:${cor(r.icc)};">${r.icc.toFixed(2)}</td>
-        <td></td>
+        <td style="text-align:right;padding:.625rem;font-weight:700;font-size:1.05rem;color:${cor(r.icc)};white-space:nowrap;">${r.icc.toFixed(2)}</td>
       </tr>`;
     }
 
