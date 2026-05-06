@@ -149,6 +149,13 @@ let aplicacoes           = [];
 let tagInput             = null;
 let editingAplicacaoId   = null;
 
+function fmtDateLocal(dateStr) {
+  if (!dateStr) return '—';
+  const parts = String(dateStr).split('-');
+  if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+  return dateStr;
+}
+
 // ── Init ──
 
 async function init() {
