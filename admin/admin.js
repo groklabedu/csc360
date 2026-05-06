@@ -242,9 +242,9 @@ function fmtDate(iso) {
 
 function fmtDateLocal(dateStr) {
   if (!dateStr) return '—';
-  const parts = String(dateStr).split('-');
-  if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
-  return dateStr;
+  const m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[3] + '/' + m[2] + '/' + m[1];
+  return String(dateStr);
 }
 
 // ── Render breadcrumb ──

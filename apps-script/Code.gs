@@ -150,12 +150,17 @@ function validarCodigo(data) {
     const aplicacaoId = String(row[map['aplicacao_id']]);
     const ap = sheetToObjects(getSheet('aplicacoes')).find(a => a.id === aplicacaoId);
     if (ap && ap.data_limite) {
-      const parts = String(ap.data_limite).split('-').map(Number);
-      if (parts.length === 3) {
-        const limite = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
-        if (new Date() > limite) {
-          return { success: false, error: 'O prazo para resposta encerrou em ' + parts[2].toString().padStart(2,'0') + '/' + parts[1].toString().padStart(2,'0') + '/' + parts[0] + '.' };
-        }
+      let limite;
+      if (ap.data_limite instanceof Date) {
+        limite = new Date(ap.data_limite.getFullYear(), ap.data_limite.getMonth(), ap.data_limite.getDate(), 23, 59, 59, 999);
+      } else {
+        const m = String(ap.data_limite).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m) limite = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 23, 59, 59, 999);
+      }
+      if (limite && new Date() > limite) {
+        const d = limite.getDate().toString().padStart(2,'0');
+        const mo = (limite.getMonth()+1).toString().padStart(2,'0');
+        return { success: false, error: 'O prazo para resposta encerrou em ' + d + '/' + mo + '/' + limite.getFullYear() + '.' };
       }
     }
 
@@ -394,9 +399,16 @@ function listarAplicacoes(data) {
   const { empresa_id } = data;
   if (!empresa_id) return { success: false, error: 'empresa_id obrigatório.' };
 
+  const tz = Session.getScriptTimeZone();
   const rows = sheetToObjects(getSheet('aplicacoes'))
     .filter(r => r.empresa_id === empresa_id)
-    .sort((a, b) => a.ordem - b.ordem);
+    .sort((a, b) => a.ordem - b.ordem)
+    .map(r => ({
+      ...r,
+      data_limite: r.data_limite instanceof Date
+        ? Utilities.formatDate(r.data_limite, tz, 'yyyy-MM-dd')
+        : (r.data_limite || ''),
+    }));
 
   return { success: true, aplicacoes: rows };
 }
