@@ -140,6 +140,38 @@ function initTagInput(wrapperId, initial) {
   };
 }
 
+// ── Excel download (HTML-as-XLS, UTF-8, sem dependência externa) ──
+
+function downloadXLS(rows, filename) {
+  const esc = s => String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
+           + 'xmlns:x="urn:schemas-microsoft-com:office:excel" '
+           + 'xmlns="http://www.w3.org/TR/REC-html40">'
+           + '<head><meta charset="UTF-8"></head><body><table>';
+
+  rows.forEach((row, i) => {
+    html += '<tr>';
+    row.forEach(cell => {
+      html += i === 0
+        ? `<th style="font-weight:bold;background:#f0f0f0;">${esc(cell)}</th>`
+        : `<td>${esc(cell)}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</table></body></html>';
+
+  const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = filename.replace(/\.(csv|xls)$/i, '') + '.xls';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 // ── CSV download ──
 
 function downloadCSV(rows, filename) {

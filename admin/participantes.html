@@ -50,7 +50,7 @@
       <button id="btn-add"    class="btn btn-primary">+ Adicionar</button>
       <button id="btn-import" class="btn btn-secondary">📥 Importar CSV</button>
       <div class="toolbar-spacer"></div>
-      <button id="btn-resultados" class="btn btn-outline">📊 Resultados CSV</button>
+      <button id="btn-resultados" class="btn btn-outline">📊 Resultados Excel</button>
       <button id="btn-export"     class="btn btn-outline">📤 Exportar CSV</button>
     </div>
 
@@ -611,8 +611,8 @@ async function exportarResultados() {
     const r = await apiCall('exportarResultadosAplicacao', { aplicacao_id: aplicacao.id });
     if (!r.success) { showToast(r.error, 'error'); return; }
     const filename = (empresa.nome + '_' + aplicacao.nome + '_resultados')
-      .replace(/[^a-z0-9]/gi, '_') + '.csv';
-    downloadCSV(r.rows, filename);
+      .replace(/[^a-z0-9]/gi, '_');
+    downloadXLS(r.rows, filename);
     showToast('Resultados exportados!');
   } catch (err) {
     showToast(err.message, 'error');
