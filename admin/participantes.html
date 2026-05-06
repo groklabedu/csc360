@@ -169,7 +169,7 @@
 
 <!-- Modal: resultados individuais -->
 <div id="modal-resultados" class="modal-overlay hidden">
-  <div class="modal-box" style="max-width:580px;overflow:hidden;">
+  <div class="modal-box" style="max-width:560px;">
     <h3 id="modal-resultados-nome" style="margin-bottom:1rem;"></h3>
     <div id="modal-resultados-corpo"></div>
     <button onclick="hideModal('modal-resultados')" class="btn btn-secondary" style="width:100%;margin-top:1rem;">Fechar</button>
@@ -567,8 +567,9 @@ async function verResultados(id, nome) {
     const cor   = v => v >= 4 ? '#16a34a' : v >= 3 ? '#ca8a04' : '#dc2626';
     const label = v => v >= 4 ? 'Bom' : v >= 3 ? 'Regular' : 'Atenção';
 
-    let html = '<table style="width:100%;border-collapse:collapse;font-size:.875rem;table-layout:fixed;">';
-    html += '<colgroup><col style="width:55%"><col style="width:22%"><col style="width:23%"></colgroup>';
+    let html = '<div style="overflow-x:auto;margin:0 -.25rem;">';
+    html += '<table style="border-collapse:collapse;font-size:.875rem;min-width:320px;width:100%;">';
+    html += '<colgroup><col style="min-width:130px"><col style="width:65px"><col style="width:72px"></colgroup>';
     html += '<thead><tr style="border-bottom:2px solid var(--border);">'
           + '<th style="text-align:left;padding:.5rem .625rem;font-weight:600;">Eixo</th>'
           + '<th style="text-align:center;padding:.5rem .625rem;font-weight:600;">Nota</th>'
@@ -578,21 +579,21 @@ async function verResultados(id, nome) {
     for (const [eixo, val] of Object.entries(r.eixos)) {
       if (val == null) continue;
       html += `<tr style="border-bottom:1px solid var(--border);">
-        <td style="padding:.5rem .625rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(eixo)}</td>
-        <td style="text-align:center;padding:.5rem .625rem;font-weight:700;color:${cor(val)};">${val.toFixed(2)}</td>
-        <td style="text-align:center;padding:.5rem .625rem;font-size:.75rem;color:${cor(val)};">${label(val)}</td>
+        <td style="padding:.5rem .625rem;">${escHtml(eixo)}</td>
+        <td style="text-align:center;padding:.5rem .625rem;font-weight:700;color:${cor(val)};white-space:nowrap;">${val.toFixed(2)}</td>
+        <td style="text-align:center;padding:.5rem .625rem;font-size:.75rem;color:${cor(val)};white-space:nowrap;">${label(val)}</td>
       </tr>`;
     }
 
     if (r.icc != null) {
       html += `<tr style="background:#f8fafc;border-top:2px solid var(--border);">
         <td style="padding:.625rem .625rem;font-weight:700;">ICC</td>
-        <td style="text-align:center;padding:.625rem;font-weight:700;font-size:1.05rem;color:${cor(r.icc)};">${r.icc.toFixed(2)}</td>
+        <td style="text-align:center;padding:.625rem;font-weight:700;font-size:1.05rem;color:${cor(r.icc)};white-space:nowrap;">${r.icc.toFixed(2)}</td>
         <td></td>
       </tr>`;
     }
 
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     document.getElementById('modal-resultados-corpo').innerHTML = html;
 
   } catch (err) {
