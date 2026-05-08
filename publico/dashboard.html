@@ -109,12 +109,29 @@
     .pos-badge { display: inline-flex; align-items: center; gap: .5rem; padding: .5rem 1rem; border-radius: 999px; font-weight: 700; font-size: .875rem; width: 100%; justify-content: center; margin-top: .5rem; }
     .pos-sub { font-size: .7rem; color: #64748b; text-align: center; margin-top: .375rem; text-transform: uppercase; letter-spacing: .04em; }
 
+    /* ── PDF export button ── */
+    .btn-pdf {
+      background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
+      color: #fff; padding: .4rem .875rem; border-radius: 6px; font-size: .8rem;
+      font-weight: 600; cursor: pointer; display: none; align-items: center;
+      gap: .375rem; white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-pdf:hover { background: rgba(255,255,255,.25); }
+
     /* ── Print ── */
+    @page { size: A4 landscape; margin: 1.2cm 1cm; }
     @media print {
-      .dash-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .cat-label, .destaque-score, .icc-evo { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .dash-main { grid-template-columns: 180px 1fr 180px; }
-      .dash-bottom { grid-template-columns: 1fr 280px; }
+      body { background: #fff !important; }
+      .btn-pdf { display: none !important; }
+      .dash-wrap { padding-bottom: .5rem; }
+      .dash-header, .cat-label, .destaque-score, .icc-evo, .legend-dot,
+      .como-ler-num, .icc-card, .destaque-score, .eixo-icon-ov {
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      }
+      .dash-main { grid-template-columns: 170px 1fr 170px; gap: .75rem; margin-top: .75rem; }
+      .dash-bottom { grid-template-columns: 1fr 265px; gap: .75rem; margin-top: .75rem; }
+      .radar-wrap { height: 350px; }
+      .card { break-inside: avoid; }
     }
   </style>
 </head>
@@ -152,6 +169,7 @@
         <small>Período da Avaliação</small>
         <strong id="header-periodo"></strong>
       </div>
+      <button id="btn-pdf" class="btn-pdf" onclick="exportarPDF()">📄 Exportar PDF</button>
     </div>
   </header>
 
@@ -410,6 +428,38 @@ function render(data) {
   const tots = aplicacoes.reduce((s,a)=>s+a.total_respondentes,0);
   document.getElementById('footer-text').textContent =
     'Avaliação realizada com ' + tots + ' respondente' + (tots!==1?'s':'') + ' · RADAR CSC 360°';
+  document.getElementById('btn-pdf').style.display = 'flex';
+}
+
+function exportarPDF() {
+  const radarCanvas = document.getElementById('radar-chart');
+  const p33Canvas   = document.getElementById('p33-chart');
+
+  function snapCanvas(canvas) {
+    const img = document.createElement('img');
+    img.src = canvas.toDataURL('image/png');
+    img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
+    canvas.before(img);
+    canvas.style.display = 'none';
+    return img;
+  }
+
+  const radarImg = snapCanvas(radarCanvas);
+  const p33Img   = snapCanvas(p33Canvas);
+
+  let restored = false;
+  function restore() {
+    if (restored) return;
+    restored = true;
+    radarCanvas.style.display = '';
+    radarImg.remove();
+    p33Canvas.style.display = '';
+    p33Img.remove();
+  }
+
+  window.addEventListener('afterprint', restore, { once: true });
+  window.print();
+  setTimeout(restore, 5000);
 }
 
 function renderHeader(empresa, aplicacoes, total) {
