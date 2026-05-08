@@ -128,7 +128,6 @@
       .como-ler-num, .icc-card, .destaque-score {
         -webkit-print-color-adjust: exact; print-color-adjust: exact;
       }
-      .ico, .eixo-icon-ov { display: none !important; }
       .dash-main { grid-template-columns: 170px 1fr 170px; gap: .75rem; margin-top: .75rem; }
       .dash-bottom { grid-template-columns: 1fr 265px; gap: .75rem; margin-top: .75rem; }
       .radar-wrap { height: 350px; }
@@ -448,6 +447,34 @@ function exportarPDF() {
   const radarImg = snapCanvas(radarCanvas);
   const p33Img   = snapCanvas(p33Canvas);
 
+  // mask-image não renderiza em PDF — substituir temporariamente por <img>
+  const icoNodes = [...document.querySelectorAll('.ico, .eixo-icon-ov')];
+  const icoSwaps = icoNodes.map(el => {
+    const st = el.getAttribute('style') || '';
+    const urlMatch = st.match(/mask-image:url\(['"]?([^'")\s]+)['"]?\)/);
+    if (!urlMatch) return { el, img: null };
+
+    const img = document.createElement('img');
+    img.src = urlMatch[1];
+    img.className = 'print-ico-img';
+
+    if (el.classList.contains('eixo-icon-ov')) {
+      const clean = st
+        .replace(/background-color:[^;]+;?\s*/g, '')
+        .replace(/-webkit-mask[^;]+;?\s*/g, '')
+        .replace(/mask-[^;]+;?\s*/g, '');
+      img.style.cssText = clean + 'object-fit:contain;';
+    } else {
+      const w = (st.match(/width:(\d+)px/) || [])[1] || '20';
+      const h = (st.match(/height:(\d+)px/) || [])[1] || '20';
+      img.style.cssText = `width:${w}px;height:${h}px;flex-shrink:0;display:inline-block;vertical-align:middle;`;
+    }
+
+    el.before(img);
+    el.style.display = 'none';
+    return { el, img };
+  });
+
   let restored = false;
   function restore() {
     if (restored) return;
@@ -456,6 +483,10 @@ function exportarPDF() {
     radarImg.remove();
     p33Canvas.style.display = '';
     p33Img.remove();
+    icoSwaps.forEach(({ el, img }) => {
+      el.style.display = '';
+      if (img) img.remove();
+    });
   }
 
   window.addEventListener('afterprint', restore, { once: true });
