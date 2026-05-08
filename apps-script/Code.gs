@@ -665,11 +665,11 @@ function getDashboardData(data) {
       { mostrar_respostas: false, selecionadas: [] }
     );
 
-    // Destaques automáticos
+    // Destaques automáticos — forte ≥ 3.8, fraco ≤ 3.7
     const ranked = Object.entries(eixos).filter(([,v]) => v != null).sort(([,a],[,b]) => b - a);
     const destaquesAuto = {
-      top3: ranked.slice(0, 3),
-      bot3: ranked.slice(-3).reverse(),
+      top3: ranked.filter(([,v]) => v >= 3.8),
+      bot3: ranked.filter(([,v]) => v <= 3.7).reverse(),
     };
 
     return {
