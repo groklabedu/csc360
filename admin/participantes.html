@@ -237,6 +237,50 @@ function downloadXLS(rows, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// Redefinidas aqui (não só em admin.js) para evitar dependência de cache do arquivo externo
+function mensagemAssuntoPadrao() {
+  return 'Avaliação CSC 360° — Seu código de acesso';
+}
+
+function mensagemCorpoPadrao() {
+  return [
+    'Olá, {{nome}}!',
+    '',
+    'Você foi convidado(a) para responder à Avaliação CSC 360°.',
+    '',
+    'Sua participação é muito importante! A pesquisa de satisfação com os serviços CSC tem como objetivo contribuir para a melhoria da eficácia, identificando pontos fortes e oportunidades de melhoria, sempre com foco em uma prestação de serviços de excelência. Ressaltamos que a avaliação não é sobre pessoas, e sim sobre as áreas e os serviços prestados.',
+    '',
+    'Acesse o questionário pelo link abaixo:',
+    '{{link}}',
+    '',
+    '🔐 Código de acesso: {{codigo}}{{prazo}}',
+    '',
+    'O questionário leva cerca de 10 minutos para ser concluído, e suas respostas são confidenciais.',
+    '',
+    'Agradecemos pela sua participação!',
+  ].join('\n');
+}
+
+function preencherTemplate(template, vars) {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] !== undefined ? vars[key] : '');
+}
+
+function gerarMailto(participante, link, dataLimite, aplicacao) {
+  const assuntoTemplate = (aplicacao && aplicacao.mensagem_assunto) || mensagemAssuntoPadrao();
+  const corpoTemplate   = (aplicacao && aplicacao.mensagem_corpo)   || mensagemCorpoPadrao();
+  const vars = {
+    nome:   participante.nome,
+    link,
+    codigo: participante.codigo,
+    prazo:  dataLimite ? '\n\n⏰ Prazo para resposta: ' + fmtDateLocal(dataLimite) : '',
+  };
+  const assunto = preencherTemplate(assuntoTemplate, vars);
+  const corpo   = preencherTemplate(corpoTemplate, vars);
+  return 'mailto:' + encodeURIComponent(participante.email || '')
+    + '?subject=' + encodeURIComponent(assunto)
+    + '&body='    + encodeURIComponent(corpo);
+}
+
 // ── Init ──
 
 async function init() {
@@ -432,8 +476,8 @@ function setupModals() {
     if (e.target === document.getElementById('modal-mensagem')) hideModal('modal-mensagem');
   });
   document.getElementById('btn-msg-padrao').addEventListener('click', () => {
-    document.getElementById('msg-assunto').value = MENSAGEM_ASSUNTO_PADRAO;
-    document.getElementById('msg-corpo').value    = MENSAGEM_CORPO_PADRAO;
+    document.getElementById('msg-assunto').value = mensagemAssuntoPadrao();
+    document.getElementById('msg-corpo').value    = mensagemCorpoPadrao();
   });
   document.getElementById('btn-msg-salvar').addEventListener('click', salvarMensagem);
 
@@ -688,8 +732,8 @@ async function exportarResultados() {
 // ── Editar mensagem de convite ──
 
 function abrirModalMensagem() {
-  document.getElementById('msg-assunto').value = aplicacao.mensagem_assunto || MENSAGEM_ASSUNTO_PADRAO;
-  document.getElementById('msg-corpo').value    = aplicacao.mensagem_corpo   || MENSAGEM_CORPO_PADRAO;
+  document.getElementById('msg-assunto').value = aplicacao.mensagem_assunto || mensagemAssuntoPadrao();
+  document.getElementById('msg-corpo').value    = aplicacao.mensagem_corpo   || mensagemCorpoPadrao();
   document.getElementById('msg-erro').classList.add('hidden');
   showModal('modal-mensagem');
 }

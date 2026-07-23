@@ -218,32 +218,36 @@ function parseCSVText(text) {
 
 // ── Mailto builder ──
 
-const MENSAGEM_ASSUNTO_PADRAO = 'Avaliação CSC 360° — Seu código de acesso';
+function mensagemAssuntoPadrao() {
+  return 'Avaliação CSC 360° — Seu código de acesso';
+}
 
-const MENSAGEM_CORPO_PADRAO = [
-  'Olá, {{nome}}!',
-  '',
-  'Você foi convidado(a) para responder à Avaliação CSC 360°.',
-  '',
-  'Sua participação é muito importante! A pesquisa de satisfação com os serviços CSC tem como objetivo contribuir para a melhoria da eficácia, identificando pontos fortes e oportunidades de melhoria, sempre com foco em uma prestação de serviços de excelência. Ressaltamos que a avaliação não é sobre pessoas, e sim sobre as áreas e os serviços prestados.',
-  '',
-  'Acesse o questionário pelo link abaixo:',
-  '{{link}}',
-  '',
-  '🔐 Código de acesso: {{codigo}}{{prazo}}',
-  '',
-  'O questionário leva cerca de 10 minutos para ser concluído, e suas respostas são confidenciais.',
-  '',
-  'Agradecemos pela sua participação!',
-].join('\n');
+function mensagemCorpoPadrao() {
+  return [
+    'Olá, {{nome}}!',
+    '',
+    'Você foi convidado(a) para responder à Avaliação CSC 360°.',
+    '',
+    'Sua participação é muito importante! A pesquisa de satisfação com os serviços CSC tem como objetivo contribuir para a melhoria da eficácia, identificando pontos fortes e oportunidades de melhoria, sempre com foco em uma prestação de serviços de excelência. Ressaltamos que a avaliação não é sobre pessoas, e sim sobre as áreas e os serviços prestados.',
+    '',
+    'Acesse o questionário pelo link abaixo:',
+    '{{link}}',
+    '',
+    '🔐 Código de acesso: {{codigo}}{{prazo}}',
+    '',
+    'O questionário leva cerca de 10 minutos para ser concluído, e suas respostas são confidenciais.',
+    '',
+    'Agradecemos pela sua participação!',
+  ].join('\n');
+}
 
 function preencherTemplate(template, vars) {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] !== undefined ? vars[key] : '');
 }
 
 function gerarMailto(participante, link, dataLimite, aplicacao) {
-  const assuntoTemplate = (aplicacao && aplicacao.mensagem_assunto) || MENSAGEM_ASSUNTO_PADRAO;
-  const corpoTemplate   = (aplicacao && aplicacao.mensagem_corpo)   || MENSAGEM_CORPO_PADRAO;
+  const assuntoTemplate = (aplicacao && aplicacao.mensagem_assunto) || mensagemAssuntoPadrao();
+  const corpoTemplate   = (aplicacao && aplicacao.mensagem_corpo)   || mensagemCorpoPadrao();
   const vars = {
     nome:   participante.nome,
     link,
