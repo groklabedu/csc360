@@ -93,6 +93,17 @@ function getHeaderMap(sheet) {
   return { headers, map };
 }
 
+function ensureColumns(sheet, headers, map, colNames) {
+  colNames.forEach(col => {
+    if (map[col] === undefined) {
+      const idx = headers.length;
+      sheet.getRange(1, idx + 1).setValue(col);
+      map[col] = idx;
+      headers.push(col);
+    }
+  });
+}
+
 function generateId() {
   return Utilities.getUuid();
 }
@@ -348,12 +359,7 @@ function criarAplicacao(data) {
   const sheet = getSheet('aplicacoes');
   const { headers, map } = getHeaderMap(sheet);
 
-  if (map['data_limite'] === undefined) {
-    const idx = headers.length;
-    sheet.getRange(1, idx + 1).setValue('data_limite');
-    map['data_limite'] = idx;
-    headers.push('data_limite');
-  }
+  ensureColumns(sheet, headers, map, ['data_limite', 'mensagem_assunto', 'mensagem_corpo']);
 
   const id    = generateId();
   const ordem = existentes.length + 1;
@@ -372,25 +378,22 @@ function criarAplicacao(data) {
 }
 
 function editarAplicacao(data) {
-  const { id, nome, data_limite } = data;
+  const { id, nome, data_limite, mensagem_assunto, mensagem_corpo } = data;
   if (!id) return { success: false, error: 'ID obrigatório.' };
 
   const sheet = getSheet('aplicacoes');
   const rows  = sheet.getDataRange().getValues();
   const { headers, map } = getHeaderMap(sheet);
 
-  if (map['data_limite'] === undefined) {
-    const idx = headers.length;
-    sheet.getRange(1, idx + 1).setValue('data_limite');
-    map['data_limite'] = idx;
-    headers.push('data_limite');
-  }
+  ensureColumns(sheet, headers, map, ['data_limite', 'mensagem_assunto', 'mensagem_corpo']);
 
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][map['id']] !== id) continue;
     const r = i + 1;
-    if (nome        !== undefined) sheet.getRange(r, map['nome']       + 1).setValue(nome);
-    if (data_limite !== undefined) sheet.getRange(r, map['data_limite'] + 1).setValue(data_limite || '');
+    if (nome             !== undefined) sheet.getRange(r, map['nome']             + 1).setValue(nome);
+    if (data_limite      !== undefined) sheet.getRange(r, map['data_limite']      + 1).setValue(data_limite || '');
+    if (mensagem_assunto !== undefined) sheet.getRange(r, map['mensagem_assunto'] + 1).setValue(mensagem_assunto || '');
+    if (mensagem_corpo   !== undefined) sheet.getRange(r, map['mensagem_corpo']   + 1).setValue(mensagem_corpo || '');
     return { success: true };
   }
 
@@ -920,7 +923,7 @@ function setupPlanilha() {
 
   const abas = {
     empresas: ['id','nome','areas','max_aplicacoes','criado_em'],
-    aplicacoes: ['id','empresa_id','nome','ordem','criado_em','data_limite'],
+    aplicacoes: ['id','empresa_id','nome','ordem','criado_em','data_limite','mensagem_assunto','mensagem_corpo'],
     participantes: ['id','aplicacao_id','empresa_id','nome','email','area','codigo','respondido','respondido_em'],
     respostas: [
       'id','participante_id','aplicacao_id','empresa_id',

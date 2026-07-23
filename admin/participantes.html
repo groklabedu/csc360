@@ -49,6 +49,7 @@
     <div class="toolbar">
       <button id="btn-add"    class="btn btn-primary">+ Adicionar</button>
       <button id="btn-import" class="btn btn-secondary">📥 Importar CSV</button>
+      <button id="btn-mensagem" class="btn btn-secondary">✉️ Editar mensagem</button>
       <div class="toolbar-spacer"></div>
       <button id="btn-resultados" class="btn btn-outline">📊 Resultados Excel</button>
       <button id="btn-export"     class="btn btn-outline">📤 Exportar CSV</button>
@@ -164,6 +165,31 @@
       </a>
     </div>
     <button onclick="hideModal('modal-codigo')" class="btn btn-secondary btn-full" style="margin-top:.625rem;">Fechar</button>
+  </div>
+</div>
+
+<!-- Modal: editar mensagem de convite -->
+<div id="modal-mensagem" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:560px;">
+    <h3>Mensagem de Convite</h3>
+    <p style="font-size:.8rem;color:var(--text-muted);margin:.5rem 0 1rem;">
+      Personalize o e-mail enviado aos participantes desta aplicação.
+      Use <code>{{nome}}</code>, <code>{{link}}</code>, <code>{{codigo}}</code> e <code>{{prazo}}</code> como marcadores — eles serão substituídos automaticamente por participante.
+    </p>
+    <div class="form-group">
+      <label class="form-label">Assunto</label>
+      <input id="msg-assunto" class="form-input" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Corpo</label>
+      <textarea id="msg-corpo" class="form-input" rows="14" style="font-family:monospace;font-size:.85rem;"></textarea>
+    </div>
+    <div id="msg-erro" class="alert alert-error hidden" style="margin-bottom:.75rem;"></div>
+    <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
+      <button id="btn-msg-padrao"    class="btn btn-secondary" style="flex:1;">Restaurar padrão</button>
+      <button id="btn-msg-cancelar"  class="btn btn-secondary" style="flex:1;">Cancelar</button>
+      <button id="btn-msg-salvar"    class="btn btn-primary"    style="flex:2;">Salvar</button>
+    </div>
   </div>
 </div>
 
@@ -319,7 +345,7 @@ function renderTabela() {
             onclick="abrirCodigo(this.dataset.id, this.dataset.nome, this.dataset.codigo, this.dataset.email)"
           >🔗</button>
           ${p.email
-            ? `<a class="btn-icon" title="Enviar convite por e-mail" href="${escHtml(gerarMailto(p, link, aplicacao.data_limite))}" target="_blank">✉️</a>`
+            ? `<a class="btn-icon" title="Enviar convite por e-mail" href="${escHtml(gerarMailto(p, link, aplicacao.data_limite, aplicacao))}" target="_blank">✉️</a>`
             : `<button class="btn-icon" title="Sem e-mail cadastrado" disabled style="opacity:.4;">✉️</button>`
           }
           ${respondido
@@ -354,7 +380,7 @@ function abrirCodigo(id, nome, codigo, email) {
     showToast(ok ? 'Link copiado!' : 'Não foi possível copiar.', ok ? 'success' : 'error');
   };
 
-  const mailtoHref = gerarMailto({ nome, codigo, email }, link, aplicacao.data_limite);
+  const mailtoHref = gerarMailto({ nome, codigo, email }, link, aplicacao.data_limite, aplicacao);
   const emailBtn   = document.getElementById('btn-enviar-email');
   emailBtn.href    = mailtoHref;
   emailBtn.style.display = email ? '' : 'none';
@@ -398,6 +424,18 @@ function setupModals() {
   });
   document.getElementById('import-arquivo').addEventListener('change', lerArquivoCSV);
   document.getElementById('btn-import-salvar').addEventListener('click', importarParticipantes);
+
+  // Editar mensagem
+  document.getElementById('btn-mensagem').addEventListener('click', abrirModalMensagem);
+  document.getElementById('btn-msg-cancelar').addEventListener('click', () => hideModal('modal-mensagem'));
+  document.getElementById('modal-mensagem').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-mensagem')) hideModal('modal-mensagem');
+  });
+  document.getElementById('btn-msg-padrao').addEventListener('click', () => {
+    document.getElementById('msg-assunto').value = MENSAGEM_ASSUNTO_PADRAO;
+    document.getElementById('msg-corpo').value    = MENSAGEM_CORPO_PADRAO;
+  });
+  document.getElementById('btn-msg-salvar').addEventListener('click', salvarMensagem);
 
   // Exportar CSV participantes
   document.getElementById('btn-export').addEventListener('click', exportarCSV);
@@ -642,6 +680,47 @@ async function exportarResultados() {
     showToast('Resultados exportados!');
   } catch (err) {
     showToast(err.message, 'error');
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+// ── Editar mensagem de convite ──
+
+function abrirModalMensagem() {
+  document.getElementById('msg-assunto').value = aplicacao.mensagem_assunto || MENSAGEM_ASSUNTO_PADRAO;
+  document.getElementById('msg-corpo').value    = aplicacao.mensagem_corpo   || MENSAGEM_CORPO_PADRAO;
+  document.getElementById('msg-erro').classList.add('hidden');
+  showModal('modal-mensagem');
+}
+
+async function salvarMensagem() {
+  const mensagem_assunto = document.getElementById('msg-assunto').value.trim();
+  const mensagem_corpo   = document.getElementById('msg-corpo').value.trim();
+  const erroEl = document.getElementById('msg-erro');
+  const btn    = document.getElementById('btn-msg-salvar');
+
+  erroEl.classList.add('hidden');
+  setLoading(btn, true);
+  try {
+    const r = await apiCall('editarAplicacao', {
+      id: aplicacao.id,
+      mensagem_assunto,
+      mensagem_corpo,
+    });
+    if (!r.success) {
+      erroEl.textContent = r.error;
+      erroEl.classList.remove('hidden');
+      return;
+    }
+    aplicacao.mensagem_assunto = mensagem_assunto;
+    aplicacao.mensagem_corpo   = mensagem_corpo;
+    hideModal('modal-mensagem');
+    renderTabela();
+    showToast('Mensagem salva!');
+  } catch (err) {
+    erroEl.textContent = err.message;
+    erroEl.classList.remove('hidden');
   } finally {
     setLoading(btn, false);
   }
