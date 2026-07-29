@@ -217,7 +217,11 @@ function downloadXLS(rows, filename) {
   let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
            + 'xmlns:x="urn:schemas-microsoft-com:office:excel" '
            + 'xmlns="http://www.w3.org/TR/REC-html40">'
-           + '<head><meta charset="UTF-8"></head><body><table>';
+           + '<head><meta charset="UTF-8">'
+           + '<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>'
+           + '<x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>'
+           + '</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
+           + '<style>table{border-collapse:collapse;}td,th{font-family:Calibri,Arial,sans-serif;font-size:14pt;border:1px solid #d0d0d0;}</style></head><body><table>';
   rows.forEach((row, i) => {
     html += '<tr>';
     row.forEach(cell => {
